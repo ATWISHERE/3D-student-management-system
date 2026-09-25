@@ -6,7 +6,6 @@ import ConstellationGame from './ConstellationGame';
 import BubblePopperGame from './BubblePopperGame';
 import FallingStarsGame from './FallingStarsGame';
 import TargetPracticeGame from './TargetPracticeGame';
-import SpaceAquariumGame from './SpaceAquariumGame';
 
 export default function AttendanceSystem({ students, onBack }) {
   // Navigation State
@@ -261,7 +260,6 @@ export default function AttendanceSystem({ students, onBack }) {
               <option value="bubble" style={{ color: '#000' }}>Bubble Popper</option>
               <option value="falling" style={{ color: '#000' }}>Falling Stars</option>
               <option value="target" style={{ color: '#000' }}>Target Practice</option>
-              <option value="aquarium" style={{ color: '#000' }}>Space Aquarium</option>
             </select>
           </div>
         )}
@@ -304,7 +302,6 @@ export default function AttendanceSystem({ students, onBack }) {
             {selectedGame === 'bubble' && <BubblePopperGame students={currentClassStudents} attendanceData={attendanceData} selectedClass={selectedClass} selectedDate={selectedDate} setAttendanceStatus={setAttendanceStatus} markRemainingAbsent={markRemainingAbsent} />}
             {selectedGame === 'falling' && <FallingStarsGame students={currentClassStudents} attendanceData={attendanceData} selectedClass={selectedClass} selectedDate={selectedDate} setAttendanceStatus={setAttendanceStatus} markRemainingAbsent={markRemainingAbsent} />}
             {selectedGame === 'target' && <TargetPracticeGame students={currentClassStudents} attendanceData={attendanceData} selectedClass={selectedClass} selectedDate={selectedDate} setAttendanceStatus={setAttendanceStatus} markRemainingAbsent={markRemainingAbsent} />}
-            {selectedGame === 'aquarium' && <SpaceAquariumGame students={currentClassStudents} attendanceData={attendanceData} selectedClass={selectedClass} selectedDate={selectedDate} setAttendanceStatus={setAttendanceStatus} markRemainingAbsent={markRemainingAbsent} />}
           </>
         ) : (
           <motion.div 
