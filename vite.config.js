@@ -3,6 +3,7 @@ import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: '/3D-student-management-system/',
   plugins: [react()],
   server: {
     port: 5555,
