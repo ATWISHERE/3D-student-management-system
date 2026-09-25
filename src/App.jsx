@@ -177,15 +177,16 @@ function App() {
             >
               <Upload size={48} color="var(--text-accent)" style={{ margin: '0 auto' }} />
               <p>Upload 'all student.xl' File</p>
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                style={{ display: 'none' }} 
-                accept=".xls,.xlsx" 
-                onChange={handleFileUpload} 
-              />
             </motion.div>
           )}
+
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            style={{ display: 'none' }} 
+            accept=".xls,.xlsx" 
+            onChange={handleFileUpload} 
+          />
 
           <motion.div 
             initial={{ opacity: 0, y: 30 }}
@@ -193,13 +194,26 @@ function App() {
             transition={{ duration: 0.8 }}
             className="controls-wrapper"
           >
-            <input 
-              type="text" 
-              className="search-input" 
-              placeholder="Search students..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+            <div style={{ display: 'flex', gap: '1rem', width: '100%', maxWidth: '600px', margin: '0 auto', marginBottom: '1.5rem', alignItems: 'center' }}>
+              <input 
+                type="text" 
+                className="search-input" 
+                placeholder="Search students..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{ flex: 1, margin: 0 }}
+              />
+              {students.length > 0 && (
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--text-accent)', color: '#fff', border: 'none', padding: '0.8rem 1.5rem', borderRadius: '30px', cursor: 'pointer', fontFamily: 'Cormorant Garamond', fontSize: '1rem', whiteSpace: 'nowrap', boxShadow: '0 4px 15px rgba(153, 127, 99, 0.3)', transition: 'transform 0.2s' }}
+                  onMouseOver={e => e.currentTarget.style.transform='scale(1.05)'}
+                  onMouseOut={e => e.currentTarget.style.transform='scale(1)'}
+                >
+                  <Upload size={18} /> Change File
+                </button>
+              )}
+            </div>
 
             {/* Top Level: Categories */}
             <div className="tabs">
