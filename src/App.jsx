@@ -307,7 +307,7 @@ function App() {
             <h2 style={{ fontFamily: 'Cormorant Garamond', fontSize: '2rem', color: 'var(--text-main)', marginBottom: '1rem' }}>ABDUL TARIQUE WARSI</h2>
             <div style={{ display: 'flex', justifyContent: 'center', gap: '2rem', color: 'var(--text-light)', fontSize: '0.9rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>📞 8770463418</span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>✉️ abdultariquewarsi5@gmail.com</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>✉️ abdultarique5@gmail.com</span>
             </div>
             <p style={{ color: 'var(--text-light)', fontSize: '0.8rem', letterSpacing: '0.1em', textTransform: 'uppercase' }}>ATW Student Management © 2026</p>
           </div>

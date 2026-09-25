@@ -42,15 +42,6 @@ function SectionBubble({ section, index, total, isActive, onClick }) {
             speed={isActive ? 3 : 1}
           />
         </Sphere>
-        <Text
-          position={[0, 0, 1.2]}
-          fontSize={0.5}
-          color={isActive ? "#ffffff" : "#997F63"}
-          anchorX="center"
-          anchorY="middle"
-        >
-          {String(section)}
-        </Text>
       </group>
     </Float>
   );

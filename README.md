@@ -16,7 +16,7 @@ Welcome to the **ATW 3D Student Management System**, a premium, visually stunnin
 Designed and Developed by **ABDUL TARIQUE WARSI**
 
 - **Phone:** 8770463418
-- **Email:** [abdultariquewarsi5@gmail.com](mailto:abdultariquewarsi5@gmail.com)
+- **Email:** [abdultarique5@gmail.com](mailto:abdultarique5@gmail.com)
 - **GitHub:** [ATWISHERE](https://github.com/ATWISHERE)
 
 ## 🚀 Setup & Run
