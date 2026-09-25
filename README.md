@@ -1,16 +1,28 @@
-# React + Vite
+# ATW 3D Student Management System
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Welcome to the **ATW 3D Student Management System**, a premium, visually stunning, and highly interactive application for managing student directories and taking attendance using immersive 3D mini-games.
 
-Currently, two official plugins are available:
+## ✨ Features
+- **3D Directory Navigation:** Explore student records and sections through dynamic 3D floating elements powered by React Three Fiber.
+- **Interactive Attendance Games:** Take attendance using 4 unique gamified 3D experiences:
+  - 🌌 **Constellation Game:** Form a glowing constellation of present students in deep space.
+  - 🫧 **Bubble Popper:** Pop dynamic wobbling bubbles to mark attendance.
+  - 🌠 **Falling Stars:** Catch magical falling stars featuring glowing trails and bloom effects.
+  - 🎯 **Target Practice:** A cinematic neon shooting gallery to record presence.
+- **Excel Integration:** Seamlessly load, edit, and save student data and attendance records directly via `.xlsx` files.
+- **Premium Aesthetics:** Beautiful gradients, cinematic bloom post-processing, elegant typography, and a responsive modern glassmorphism UI.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 👤 Author & Contact
+Designed and Developed by **ABDUL TARIQUE WARSI**
 
-## React Compiler
+- **Phone:** 8770463418
+- **Email:** [abdultariquewarsi5@gmail.com](mailto:abdultariquewarsi5@gmail.com)
+- **GitHub:** [ATWISHERE](https://github.com/ATWISHERE)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## 🚀 Setup & Run
+To run the server locally, ensure you have Node.js installed, then run:
+```bash
+npm install
+npm run dev
+```
+Alternatively, simply double-click the `Start_Attendance.bat` script file included in the project folder to auto-start the server.

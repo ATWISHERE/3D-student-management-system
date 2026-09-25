@@ -98,21 +98,30 @@ export function Interactive3DShapes({ availableSections = [], activeSection, set
         // Default Decorative Bubbles
         <>
           <Float speed={1.5} rotationIntensity={2} floatIntensity={2} position={[viewport.width / 4, 1, -2]}>
-            <Sphere args={[1.5, 64, 64]}>
-              <MeshDistortMaterial color="#997F63" envMapIntensity={1} clearcoat={1} clearcoatRoughness={0.1} metalness={0.9} roughness={0.1} distort={0.3} speed={2} />
-            </Sphere>
+            <group>
+              <Sphere args={[1.5, 64, 64]}>
+                <MeshDistortMaterial color="#997F63" envMapIntensity={1} clearcoat={1} clearcoatRoughness={0.1} metalness={0.9} roughness={0.1} distort={0.3} speed={2} />
+              </Sphere>
+              <Text position={[0, 0, 1.6]} fontSize={1} color="#ffffff" anchorX="center" anchorY="middle" fontWeight="bold">A</Text>
+            </group>
           </Float>
 
           <Float speed={2} rotationIntensity={1} floatIntensity={1} position={[-viewport.width / 4, -2, -5]}>
-            <Sphere args={[2, 64, 64]}>
-              <MeshDistortMaterial color="#f4f1eb" envMapIntensity={2} clearcoat={1} clearcoatRoughness={0} metalness={0.5} roughness={0.2} distort={0.2} speed={1.5} />
-            </Sphere>
+            <group>
+              <Sphere args={[2, 64, 64]}>
+                <MeshDistortMaterial color="#f4f1eb" envMapIntensity={2} clearcoat={1} clearcoatRoughness={0} metalness={0.5} roughness={0.2} distort={0.2} speed={1.5} />
+              </Sphere>
+              <Text position={[0, 0, 2.1]} fontSize={1.2} color="#997F63" anchorX="center" anchorY="middle" fontWeight="bold">T</Text>
+            </group>
           </Float>
           
           <Float speed={1} rotationIntensity={3} floatIntensity={3} position={[0, -viewport.height, -3]}>
-             <Sphere args={[1.2, 64, 64]}>
-              <meshPhysicalMaterial color="#ffffff" transmission={1} opacity={1} metalness={0} roughness={0} ior={1.5} thickness={2} specularIntensity={1} specularColor="#997F63" />
-            </Sphere>
+             <group>
+              <Sphere args={[1.2, 64, 64]}>
+                <meshPhysicalMaterial color="#ffffff" transmission={1} opacity={1} metalness={0} roughness={0} ior={1.5} thickness={2} specularIntensity={1} specularColor="#997F63" />
+              </Sphere>
+              <Text position={[0, 0, 1.3]} fontSize={0.8} color="#997F63" anchorX="center" anchorY="middle" outlineWidth={0.02} outlineColor="#ffffff" fontWeight="bold">W</Text>
+             </group>
           </Float>
         </>
       )}

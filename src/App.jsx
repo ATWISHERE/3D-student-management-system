@@ -302,8 +302,15 @@ function App() {
           )}
         </section>
 
-        <section className="footer-spacer">
-          <p>ATW Student Management © 2026</p>
+        <section className="footer-spacer" style={{ padding: '4rem 2rem', background: '#fcfbfa', borderTop: '1px solid rgba(0,0,0,0.05)', textAlign: 'center' }}>
+          <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+            <h2 style={{ fontFamily: 'Cormorant Garamond', fontSize: '2rem', color: 'var(--text-main)', marginBottom: '1rem' }}>ABDUL TARIQUE WARSI</h2>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '2rem', color: 'var(--text-light)', fontSize: '0.9rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>📞 8770463418</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>✉️ abdultariquewarsi5@gmail.com</span>
+            </div>
+            <p style={{ color: 'var(--text-light)', fontSize: '0.8rem', letterSpacing: '0.1em', textTransform: 'uppercase' }}>ATW Student Management © 2026</p>
+          </div>
         </section>
 
       </div>
