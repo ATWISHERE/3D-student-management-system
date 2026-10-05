@@ -9,11 +9,12 @@ import { SHAPES } from './shapes';
 const COLORS = ['#00ffff', '#ff00ff', '#ffff00', '#00ff00', '#ffaa00'];
 
 function distributePoints(polygon, numPoints) {
+  if (!polygon || polygon.length < 2) return [];
   if (numPoints <= 0) return [];
   if (numPoints === 1) return [polygon[0]];
   let totalLength = 0;
   const segments = [];
-  for (let i = 0; i < polygon.length - 1; i++) {
+  for (let i = 0; i < polygon.length - 1; i += 2) {
     const p1 = polygon[i], p2 = polygon[i + 1];
     const dx = p2[0] - p1[0], dy = p2[1] - p1[1];
     const len = Math.sqrt(dx*dx + dy*dy);
@@ -117,26 +118,30 @@ function StarNode({ student, initialPos, targetPos, absentPos, gridPos, isPresen
   );
 }
 
-function ConstellationLines({ selectedShape, isGathered }) {
+function ConstellationLines({ selectedShape, isGathered, isFinished }) {
   const [visiblePoints, setVisiblePoints] = useState([]);
 
   const linePoints = useMemo(() => {
-    const raw = SHAPES[selectedShape] || SHAPES["Lion"];
-    const pts = raw.map(p => new THREE.Vector3(p[0] * 12, p[1] * 12, 0));
-    pts.push(pts[0]); // close loop
-    return pts;
+    const defaultShape = Object.keys(SHAPES)[0];
+    const raw = SHAPES[selectedShape] || SHAPES[defaultShape];
+    return raw.map(p => new THREE.Vector3(p[0] * 12, p[1] * 12, 0));
   }, [selectedShape]);
 
   useEffect(() => {
     setVisiblePoints([]);
-    let count = 1;
+    if (!isFinished) return;
+    let count = 0;
+    // Because it's segments (2 points per line), draw multiples of 2
+    const pointsPerTick = Math.max(2, Math.ceil(linePoints.length / 50) * 2); 
     const interval = setInterval(() => {
-      count++;
-      setVisiblePoints(linePoints.slice(0, count));
+      count += pointsPerTick;
+      // ensure we don't slice an odd number of points at the very end if array length is odd for some reason
+      const sliceEnd = count > linePoints.length ? linePoints.length - (linePoints.length % 2) : count;
+      setVisiblePoints(linePoints.slice(0, sliceEnd));
       if (count >= linePoints.length) clearInterval(interval);
-    }, 100); // Connects a new dot every 100ms
+    }, 40); // 40ms = ~25 fps drawing
     return () => clearInterval(interval);
-  }, [linePoints]);
+  }, [linePoints, isFinished]);
 
   if (isGathered || visiblePoints.length < 2) return null;
 
@@ -147,14 +152,16 @@ function ConstellationLines({ selectedShape, isGathered }) {
       lineWidth={4}
       opacity={0.8}
       transparent
+      segments={true}
     />
   );
 }
 
 export default function ConstellationGame({ students, attendanceData, selectedClass, selectedDate, setAttendanceStatus, markRemainingAbsent }) {
   const [isGathered, setIsGathered] = useState(false);
-  const [selectedShape, setSelectedShape] = useState("Lion");
+  const [selectedShape, setSelectedShape] = useState(() => Object.keys(SHAPES)[0]);
   const [ecoMode, setEcoMode] = useState(false);
+  const [isFinished, setIsFinished] = useState(false);
   const shapeKeys = Object.keys(SHAPES);
 
   const studentNamesStr = useMemo(() => students.map(s => s.Name).join(','), [students]);
@@ -195,7 +202,10 @@ export default function ConstellationGame({ students, attendanceData, selectedCl
       grid.push(new THREE.Vector3(startX + gridCol * 2.5, startY - gridRow * 2.5, 5));
     });
 
-    const shapePoints = SHAPES[selectedShape] || SHAPES["Lion"];
+    const defaultShape = Object.keys(SHAPES)[0];
+    const shapePointsRaw = SHAPES[selectedShape] || SHAPES[defaultShape];
+    const shapePoints = [...shapePointsRaw];
+
     const distributedPoints = distributePoints(shapePoints, presentIndices.length);
 
     presentIndices.forEach((studentIdx, pIdx) => {
@@ -262,6 +272,7 @@ export default function ConstellationGame({ students, attendanceData, selectedCl
         <ConstellationLines 
           selectedShape={selectedShape}
           isGathered={isGathered}
+          isFinished={isFinished}
         />
 
         {!ecoMode && (
@@ -318,7 +329,10 @@ export default function ConstellationGame({ students, attendanceData, selectedCl
         </button>
         
         <button 
-          onClick={markRemainingAbsent}
+          onClick={() => {
+            markRemainingAbsent();
+            setIsFinished(true);
+          }}
           style={{
             background: 'rgba(255, 50, 50, 0.8)', color: '#fff',
             border: '1px solid rgba(255,100,100,0.8)', padding: '0.8rem 1.2rem', borderRadius: '25px',
@@ -327,6 +341,34 @@ export default function ConstellationGame({ students, attendanceData, selectedCl
           }}
         >
           Finish Game
+        </button>
+
+        <button 
+          onClick={() => {
+            const randomKey = shapeKeys[Math.floor(Math.random() * shapeKeys.length)];
+            setSelectedShape(randomKey);
+          }}
+          style={{
+            background: 'rgba(100, 100, 255, 0.8)', color: '#fff',
+            border: '1px solid rgba(150,150,255,0.8)', padding: '0.8rem 1.2rem', borderRadius: '25px',
+            fontFamily: 'Cormorant Garamond', fontSize: '1rem', cursor: 'pointer', transition: 'all 0.3s'
+          }}
+        >
+          Random Shape
+        </button>
+
+        <button 
+          onClick={() => {
+            setIsFinished(false);
+            setIsGathered(false);
+          }}
+          style={{
+            background: 'rgba(255, 150, 50, 0.8)', color: '#fff',
+            border: '1px solid rgba(255,200,100,0.8)', padding: '0.8rem 1.2rem', borderRadius: '25px',
+            fontFamily: 'Cormorant Garamond', fontSize: '1rem', cursor: 'pointer', transition: 'all 0.3s'
+          }}
+        >
+          Reset
         </button>
       </div>
     </div>
