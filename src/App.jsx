@@ -53,9 +53,9 @@ function App() {
           
           Object.keys(row).forEach(key => {
             const lowerKey = key.toLowerCase().trim();
-            if (lowerKey === 'class') studentObj.Class = row[key];
-            if (lowerKey === 'section' || lowerKey === 'sec') studentObj.Section = row[key];
-            if (lowerKey === 'name') studentObj.Name = row[key];
+            if (lowerKey === 'class' || lowerKey === 'std' || lowerKey === 'standard') studentObj.Class = row[key];
+            else if (lowerKey === 'section' || lowerKey === 'sec' || lowerKey === 'batch') studentObj.Section = row[key];
+            else if (lowerKey === 'name' || lowerKey === 'student name' || lowerKey === 'studentname' || lowerKey === 'full name' || lowerKey === 'student\'s name') studentObj.Name = row[key];
           });
 
           if (!studentObj.Class) {
@@ -72,6 +72,7 @@ function App() {
       setActiveSection('All');
     };
     reader.readAsBinaryString(file);
+    e.target.value = null;
   };
 
   const displayStudents = students.length > 0 ? students : [

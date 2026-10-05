@@ -28,6 +28,10 @@ export default function AttendanceSystem({ students, onBack }) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [editMode, setEditMode] = useState(false); // Admin edit mode for past dates
   const fileInputRef = useRef(null);
+  
+  const [exportStartClass, setExportStartClass] = useState(1);
+  const [exportEndClass, setExportEndClass] = useState(12);
+  const [enableExportFilter, setEnableExportFilter] = useState(false);
 
   const activeStudents = students.filter(s => s.Name && s.Class);
   const classSections = [...new Set(activeStudents.map(s => `${s.Class} ${s.Section || ''}`.trim()))].sort();
@@ -78,6 +82,15 @@ export default function AttendanceSystem({ students, onBack }) {
     const wb = XLSX.utils.book_new();
 
     classSections.forEach(cls => {
+      // Filter by class numeric range if enabled
+      if (enableExportFilter) {
+        const match = cls.match(/\d+/);
+        const classNum = match ? parseInt(match[0], 10) : 0;
+        if (classNum < exportStartClass || classNum > exportEndClass) {
+          return; // Skip exporting this class
+        }
+      }
+
       const studentsInClass = activeStudents.filter(s => `${s.Class} ${s.Section || ''}`.trim() === cls);
       if (studentsInClass.length === 0) return;
 
@@ -190,6 +203,15 @@ export default function AttendanceSystem({ students, onBack }) {
 
   const currentClassStudents = activeStudents.filter(s => `${s.Class} ${s.Section || ''}`.trim() === selectedClass);
 
+  const totalCount = currentClassStudents.length;
+  let presentCount = 0;
+  let absentCount = 0;
+  currentClassStudents.forEach(student => {
+    const status = attendanceData[selectedClass]?.[student.Name]?.[selectedDate];
+    if (status === 'P') presentCount++;
+    if (status === 'A') absentCount++;
+  });
+
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100vh', overflowY: activeView === 'register' ? 'auto' : 'hidden', background: activeView === 'game' ? '#0a0a1a' : '#fcfbfa', transition: 'background 0.5s ease' }}>
       
@@ -245,6 +267,19 @@ export default function AttendanceSystem({ students, onBack }) {
               border: activeView === 'game' ? '1px solid rgba(255,255,255,0.2)' : '1px solid #eaeaea'
             }}
           />
+
+          <div style={{
+            display: 'flex', gap: '1rem', 
+            background: activeView === 'game' ? 'rgba(255,255,255,0.1)' : '#fff', 
+            padding: '0.4rem 1rem', borderRadius: '20px', 
+            fontSize: '0.85rem', fontWeight: 'bold',
+            border: activeView === 'game' ? '1px solid rgba(255,255,255,0.2)' : '1px solid #eaeaea',
+            whiteSpace: 'nowrap'
+          }}>
+            <span style={{ color: activeView === 'game' ? '#aaa' : '#666' }}>Total: <span style={{ color: activeView === 'game' ? '#fff' : '#000' }}>{totalCount}</span></span>
+            <span style={{ color: '#4caf50' }}>P: {presentCount}</span>
+            <span style={{ color: '#f44336' }}>A: {absentCount}</span>
+          </div>
         </div>
 
         {/* Game Selector (only in game view) */}
@@ -315,6 +350,24 @@ export default function AttendanceSystem({ students, onBack }) {
               </h1>
               
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#fff', padding: '0.4rem 1rem', borderRadius: '20px', border: '1px solid #eaeaea' }}>
+                  <input 
+                    type="checkbox" 
+                    id="exportFilter"
+                    checked={enableExportFilter} 
+                    onChange={e => setEnableExportFilter(e.target.checked)} 
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <label htmlFor="exportFilter" style={{ fontSize: '0.8rem', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 'bold' }}>Export Range:</label>
+                  <select disabled={!enableExportFilter} value={exportStartClass} onChange={e => setExportStartClass(Number(e.target.value))} style={{ border: 'none', outline: 'none', background: 'transparent', opacity: enableExportFilter ? 1 : 0.5 }}>
+                    {[...Array(12)].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
+                  </select>
+                  <span style={{ opacity: enableExportFilter ? 1 : 0.5 }}>to</span>
+                  <select disabled={!enableExportFilter} value={exportEndClass} onChange={e => setExportEndClass(Number(e.target.value))} style={{ border: 'none', outline: 'none', background: 'transparent', opacity: enableExportFilter ? 1 : 0.5 }}>
+                    {[...Array(12)].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
+                  </select>
+                </div>
+
                 <button 
                   onClick={() => fileInputRef.current.click()}
                   style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'transparent', border: '1px solid var(--text-main)', padding: '0.5rem 1rem', borderRadius: '20px', cursor: 'pointer', color: 'var(--text-main)' }}
