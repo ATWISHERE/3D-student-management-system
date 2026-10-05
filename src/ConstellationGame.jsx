@@ -202,6 +202,24 @@ export default function ConstellationGame({ students, attendanceData, selectedCl
       grid.push(new THREE.Vector3(startX + gridCol * 2.5, startY - gridRow * 2.5, 5));
     });
 
+    // Enforce healthy distance between scattered names (Repulsion Algorithm)
+    for (let iter = 0; iter < 20; iter++) {
+      for (let i = 0; i < initial.length; i++) {
+        for (let j = i + 1; j < initial.length; j++) {
+          const p1 = initial[i];
+          const p2 = initial[j];
+          const dist = p1.distanceTo(p2);
+          const minDistance = 4.5; // Healthy distance between scattered names
+          if (dist < minDistance && dist > 0.001) {
+            const overlap = minDistance - dist;
+            const pushDir = new THREE.Vector3().subVectors(p1, p2).normalize().multiplyScalar(overlap * 0.5);
+            p1.add(pushDir);
+            p2.sub(pushDir);
+          }
+        }
+      }
+    }
+
     const defaultShape = Object.keys(SHAPES)[0];
     const shapePointsRaw = SHAPES[selectedShape] || SHAPES[defaultShape];
     const shapePoints = [...shapePointsRaw];
