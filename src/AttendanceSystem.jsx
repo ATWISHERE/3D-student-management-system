@@ -58,13 +58,29 @@ export default function AttendanceSystem({ students, onBack }) {
         }
 
         data.forEach(row => {
-          const studentName = row['Name'];
+          let studentName = null;
+          let rollNo = null;
+
+          Object.keys(row).forEach(key => {
+            const lowerKey = key.toLowerCase().trim();
+            if (lowerKey === 'name' || lowerKey === 'student name' || lowerKey === 'studentname' || lowerKey === 'full name' || lowerKey === "student's name") {
+              studentName = row[key];
+            }
+            if (lowerKey === 'rollno' || lowerKey === 'roll no' || lowerKey === 'roll') {
+              rollNo = row[key];
+            }
+          });
+
           if (studentName) {
             if (!newAttendanceData[sheetName][studentName]) {
               newAttendanceData[sheetName][studentName] = {};
             }
             Object.keys(row).forEach(key => {
-              if (key !== 'Name' && key !== 'RollNo') {
+              const lowerKey = key.toLowerCase().trim();
+              const isNameOrRoll = ['name', 'student name', 'studentname', 'full name', "student's name", 'rollno', 'roll no', 'roll', 'class', 'section', 'batch', 's.no.', 's.no', 'sr. no.', 'sr no'].includes(lowerKey);
+              const isNumber = /^\d+$/.test(lowerKey) && lowerKey.length < 4;
+              
+              if (!isNameOrRoll && !isNumber) {
                 newAttendanceData[sheetName][studentName][key] = row[key];
               }
             });
