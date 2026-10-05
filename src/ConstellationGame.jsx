@@ -237,12 +237,34 @@ export default function ConstellationGame({ students, attendanceData, selectedCl
       const rand2 = Math.abs(Math.sin(studentIdx * 44.444));
       const rand3 = Math.abs(Math.sin(studentIdx * 55.555));
 
-      const absentX = 14 + (rand1 * 8);
-      const absentY = -10 + (rand2 * 6);
-      const absentZ = -5 + (rand3 * 4);
+      const absentX = 15 + (rand1 * 15) * (rand1 > 0.5 ? 1 : -1); 
+      const absentY = -10 + (rand2 * 15);
+      const absentZ = -5 + (rand3 * 10);
       target[studentIdx] = new THREE.Vector3(absentX, absentY, absentZ);
       absentTarget[studentIdx] = new THREE.Vector3(absentX, absentY, absentZ);
     });
+
+    // Enforce healthy distance for absent students
+    for (let iter = 0; iter < 20; iter++) {
+      for (let i = 0; i < absentIndices.length; i++) {
+        for (let j = i + 1; j < absentIndices.length; j++) {
+          const idx1 = absentIndices[i];
+          const idx2 = absentIndices[j];
+          const p1 = target[idx1];
+          const p2 = target[idx2];
+          const dist = p1.distanceTo(p2);
+          const minDistance = 4.5;
+          if (dist < minDistance && dist > 0.001) {
+            const overlap = minDistance - dist;
+            const pushDir = new THREE.Vector3().subVectors(p1, p2).normalize().multiplyScalar(overlap * 0.5);
+            p1.add(pushDir);
+            p2.sub(pushDir);
+            absentTarget[idx1].copy(p1);
+            absentTarget[idx2].copy(p2);
+          }
+        }
+      }
+    }
     
     return { initial, target, absentTarget, grid };
   }, [studentNamesStr, attendanceData, selectedClass, selectedDate, selectedShape]);
