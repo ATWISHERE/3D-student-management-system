@@ -11,6 +11,7 @@ export default function AttendanceSystem({ students, onBack }) {
   // Navigation State
   const [activeView, setActiveView] = useState('game'); // 'game' or 'register'
   const [selectedGame, setSelectedGame] = useState('constellation');
+  const [allMarkState, setAllMarkState] = useState('present'); // toggle state
 
   // Attendance State Structure: { "ClassName": { "StudentName": { "2026-09-25": "P", "2026-09-24": "A" } } }
   const [attendanceData, setAttendanceData] = useState(() => {
@@ -36,7 +37,18 @@ export default function AttendanceSystem({ students, onBack }) {
   const activeStudents = students.filter(s => s.Name && s.Class);
   const classSections = [...new Set(activeStudents.map(s => `${s.Class} ${s.Section || ''}`.trim()))].sort();
   
-  const [selectedClass, setSelectedClass] = useState(classSections[0] || '');
+  const [selectedClasses, setSelectedClasses] = useState(classSections[0] ? [classSections[0]] : []);
+  const [mergeMode, setMergeMode] = useState(false);
+
+  const toggleClassSelection = (cls) => {
+    if (selectedClasses.includes(cls)) {
+      if (selectedClasses.length > 1) {
+        setSelectedClasses(selectedClasses.filter(c => c !== cls));
+      }
+    } else {
+      setSelectedClasses([...selectedClasses, cls]);
+    }
+  };
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -153,14 +165,17 @@ export default function AttendanceSystem({ students, onBack }) {
     }
 
     setAttendanceData(prev => {
-      const currentClassData = prev[selectedClass] || {};
+      const studentObj = currentClassStudents.find(s => s.Name === studentName);
+      const targetClass = studentObj ? `${studentObj.Class} ${studentObj.Section || ''}`.trim() : selectedClasses[0];
+
+      const currentClassData = prev[targetClass] || {};
       const studentData = currentClassData[studentName] || {};
       
       const newStatus = studentData[selectedDate] === status ? '' : status;
 
       return {
         ...prev,
-        [selectedClass]: {
+        [targetClass]: {
           ...currentClassData,
           [studentName]: {
             ...studentData,
@@ -171,59 +186,41 @@ export default function AttendanceSystem({ students, onBack }) {
     });
   };
 
-  const markAllPresent = () => {
+  const currentClassStudents = activeStudents.filter(s => 
+    selectedClasses.includes(`${s.Class} ${s.Section || ''}`.trim())
+  );
+
+  const handleMarkAllToggle = () => {
     if (isPastDate && !editMode) {
       alert("Please enable Admin Edit Mode to change past attendance.");
       return;
     }
+    
+    const targetStatus = allMarkState === 'present' ? 'P' : 'A';
+    
     setAttendanceData(prev => {
-      const currentClassData = { ...(prev[selectedClass] || {}) };
+      const newData = { ...prev };
       
       currentClassStudents.forEach(student => {
-        const studentData = { ...(currentClassData[student.Name] || {}) };
-        studentData[selectedDate] = 'P';
-        currentClassData[student.Name] = studentData;
-      });
-
-      return {
-        ...prev,
-        [selectedClass]: currentClassData
-      };
-    });
-  };
-
-  const markRemainingAbsent = () => {
-    if (isPastDate && !editMode) {
-      alert("Please enable Admin Edit Mode to change past attendance.");
-      return;
-    }
-    setAttendanceData(prev => {
-      const currentClassData = { ...(prev[selectedClass] || {}) };
-      
-      currentClassStudents.forEach(student => {
-        const studentData = { ...(currentClassData[student.Name] || {}) };
+        const targetClass = `${student.Class} ${student.Section || ''}`.trim();
+        if (!newData[targetClass]) newData[targetClass] = {};
+        if (!newData[targetClass][student.Name]) newData[targetClass][student.Name] = {};
         
-        // If they are not marked 'P', mark them 'A'
-        if (studentData[selectedDate] !== 'P') {
-          studentData[selectedDate] = 'A';
-        }
-        currentClassData[student.Name] = studentData;
+        newData[targetClass][student.Name][selectedDate] = targetStatus;
       });
 
-      return {
-        ...prev,
-        [selectedClass]: currentClassData
-      };
+      return newData;
     });
-  };
 
-  const currentClassStudents = activeStudents.filter(s => `${s.Class} ${s.Section || ''}`.trim() === selectedClass);
+    setAllMarkState(allMarkState === 'present' ? 'absent' : 'present');
+  };
 
   const totalCount = currentClassStudents.length;
   let presentCount = 0;
   let absentCount = 0;
   currentClassStudents.forEach(student => {
-    const status = attendanceData[selectedClass]?.[student.Name]?.[selectedDate];
+    const targetClass = `${student.Class} ${student.Section || ''}`.trim();
+    const status = attendanceData[targetClass]?.[student.Name]?.[selectedDate];
     if (status === 'P') presentCount++;
     if (status === 'A') absentCount++;
   });
@@ -259,18 +256,41 @@ export default function AttendanceSystem({ students, onBack }) {
 
         {/* Pinned Minimal Selectors */}
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <select 
-            value={selectedClass} 
-            onChange={(e) => setSelectedClass(e.target.value)}
-            style={{ 
-              padding: '0.4rem 1rem', borderRadius: '20px', fontSize: '0.9rem', outline: 'none',
-              background: activeView === 'game' ? 'rgba(255,255,255,0.1)' : '#fff',
-              color: activeView === 'game' ? '#fff' : 'var(--text-main)',
-              border: activeView === 'game' ? '1px solid rgba(255,255,255,0.2)' : '1px solid #eaeaea'
-            }}
-          >
-            {classSections.map(cls => <option key={cls} value={cls} style={{ color: '#000' }}>{cls}</option>)}
-          </select>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {mergeMode ? (
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', maxWidth: '300px', maxHeight: '60px', overflowY: 'auto' }}>
+                {classSections.map(cls => (
+                  <label key={cls} style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.8rem', background: 'rgba(255,255,255,0.2)', padding: '0.2rem 0.5rem', borderRadius: '15px' }}>
+                    <input type="checkbox" checked={selectedClasses.includes(cls)} onChange={() => toggleClassSelection(cls)} />
+                    <span style={{ color: activeView === 'game' ? '#fff' : '#000' }}>{cls}</span>
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <select 
+                value={selectedClasses[0] || ''} 
+                onChange={(e) => setSelectedClasses([e.target.value])}
+                style={{ 
+                  padding: '0.4rem 1rem', borderRadius: '20px', fontSize: '0.9rem', outline: 'none',
+                  background: activeView === 'game' ? 'rgba(255,255,255,0.1)' : '#fff',
+                  color: activeView === 'game' ? '#fff' : 'var(--text-main)',
+                  border: activeView === 'game' ? '1px solid rgba(255,255,255,0.2)' : '1px solid #eaeaea'
+                }}
+              >
+                {classSections.map(cls => <option key={cls} value={cls} style={{ color: '#000' }}>{cls}</option>)}
+              </select>
+            )}
+            <button 
+              onClick={() => setMergeMode(!mergeMode)} 
+              style={{ 
+                background: mergeMode ? 'var(--text-accent)' : 'transparent', 
+                color: mergeMode ? '#fff' : (activeView === 'game' ? '#fff' : 'var(--text-main)'), 
+                border: `1px solid ${mergeMode ? 'var(--text-accent)' : '#eaeaea'}`, 
+                padding: '0.4rem 0.8rem', borderRadius: '20px', fontSize: '0.8rem', cursor: 'pointer', transition: 'all 0.3s' 
+              }}>
+              {mergeMode ? 'Done Merging' : 'Merge Classes'}
+            </button>
+          </div>
 
           <input 
             type="date" 
@@ -349,10 +369,10 @@ export default function AttendanceSystem({ students, onBack }) {
         
         {activeView === 'game' ? (
           <>
-            {selectedGame === 'constellation' && <ConstellationGame students={currentClassStudents} attendanceData={attendanceData} selectedClass={selectedClass} selectedDate={selectedDate} setAttendanceStatus={setAttendanceStatus} markRemainingAbsent={markRemainingAbsent} />}
-            {selectedGame === 'bubble' && <BubblePopperGame students={currentClassStudents} attendanceData={attendanceData} selectedClass={selectedClass} selectedDate={selectedDate} setAttendanceStatus={setAttendanceStatus} markRemainingAbsent={markRemainingAbsent} />}
-            {selectedGame === 'falling' && <FallingStarsGame students={currentClassStudents} attendanceData={attendanceData} selectedClass={selectedClass} selectedDate={selectedDate} setAttendanceStatus={setAttendanceStatus} markRemainingAbsent={markRemainingAbsent} />}
-            {selectedGame === 'target' && <TargetPracticeGame students={currentClassStudents} attendanceData={attendanceData} selectedClass={selectedClass} selectedDate={selectedDate} setAttendanceStatus={setAttendanceStatus} markRemainingAbsent={markRemainingAbsent} />}
+            {selectedGame === 'constellation' && <ConstellationGame students={currentClassStudents} attendanceData={attendanceData} selectedClass={selectedClasses[0]} selectedDate={selectedDate} setAttendanceStatus={setAttendanceStatus} markRemainingAbsent={() => {}} />}
+            {selectedGame === 'bubble' && <BubblePopperGame students={currentClassStudents} attendanceData={attendanceData} selectedClass={selectedClasses[0]} selectedDate={selectedDate} setAttendanceStatus={setAttendanceStatus} markRemainingAbsent={() => {}} />}
+            {selectedGame === 'falling' && <FallingStarsGame students={currentClassStudents} attendanceData={attendanceData} selectedClass={selectedClasses[0]} selectedDate={selectedDate} setAttendanceStatus={setAttendanceStatus} markRemainingAbsent={() => {}} />}
+            {selectedGame === 'target' && <TargetPracticeGame students={currentClassStudents} attendanceData={attendanceData} selectedClass={selectedClasses[0]} selectedDate={selectedDate} setAttendanceStatus={setAttendanceStatus} markRemainingAbsent={() => {}} />}
           </>
         ) : (
           <motion.div 
@@ -420,10 +440,10 @@ export default function AttendanceSystem({ students, onBack }) {
                 </div>
               </div>
               <button 
-                onClick={markAllPresent}
-                style={{ background: '#e8f5e9', color: '#2e7d32', border: '1px solid #c8e6c9', padding: '0.5rem 1rem', borderRadius: '20px', fontSize: '0.9rem', cursor: 'pointer', transition: 'all 0.2s' }}
+                onClick={handleMarkAllToggle}
+                style={{ background: allMarkState === 'present' ? '#e8f5e9' : '#ffebee', color: allMarkState === 'present' ? '#2e7d32' : '#c62828', border: `1px solid ${allMarkState === 'present' ? '#c8e6c9' : '#ffcdd2'}`, padding: '0.5rem 1rem', borderRadius: '20px', fontSize: '0.9rem', cursor: 'pointer', transition: 'all 0.3s' }}
               >
-                Mark All Present
+                {allMarkState === 'present' ? 'Mark All Present' : 'Mark All Absent'}
               </button>
             </div>
 
@@ -446,7 +466,8 @@ export default function AttendanceSystem({ students, onBack }) {
                 </div>
               ) : (
                 currentClassStudents.map((student, idx) => {
-                  const status = attendanceData[selectedClass]?.[student.Name]?.[selectedDate] || '';
+                  const targetClass = `${student.Class} ${student.Section || ''}`.trim();
+                  const status = attendanceData[targetClass]?.[student.Name]?.[selectedDate] || '';
                   return (
                     <motion.div 
                       initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.02 }}
@@ -457,13 +478,21 @@ export default function AttendanceSystem({ students, onBack }) {
                         boxShadow: '0 2px 10px rgba(0,0,0,0.02)', borderLeft: `4px solid ${status === 'P' ? '#4caf50' : status === 'A' ? '#f44336' : 'transparent'}`
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <div style={{ fontFamily: 'Cormorant Garamond', fontSize: '1.5rem', color: 'var(--text-light)', fontWeight: 'bold', minWidth: '30px' }}>
+                          {idx + 1}.
+                        </div>
                         <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#f5f5f5', display: 'flex', justifyContent: 'center', alignItems: 'center', fontFamily: 'Cormorant Garamond', fontSize: '1.2rem', color: 'var(--text-accent)' }}>
                           {student.Name.charAt(0)}
                         </div>
                         <div>
-                          <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-main)' }}>{student.Name}</h3>
-                          <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-light)' }}>Roll No: {student.RollNo || 'N/A'}</p>
+                          <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            {student.Name}
+                            <span style={{ fontSize: '0.75rem', background: '#f0f0f0', padding: '0.2rem 0.5rem', borderRadius: '10px', color: 'var(--text-light)' }}>
+                              {targetClass}
+                            </span>
+                          </h3>
+                          <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-light)' }}>{student.IdentifierField || 'Roll No'}: {student.IdentifierValue || student.RollNo || 'N/A'}</p>
                         </div>
                       </div>
 

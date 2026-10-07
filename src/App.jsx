@@ -27,6 +27,9 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [activePage, setActivePage] = useState('directory'); // Router State
+  const [previewData, setPreviewData] = useState(null); // Intelligent Excel Parsing mapping state
+  const [columnMap, setColumnMap] = useState({ name: '', class: '', section: '', identifier: '' });
+  const [showDefaulters, setShowDefaulters] = useState(false);
   const fileInputRef = useRef(null);
 
   const handleFileUpload = (e) => {
@@ -37,43 +40,58 @@ function App() {
     reader.onload = (evt) => {
       const bstr = evt.target.result;
       const wb = XLSX.read(bstr, { type: 'binary' });
-      
-      const allStudentsData = [];
+      const allHeaders = new Set();
+      const rawData = [];
 
       wb.SheetNames.forEach(sheetName => {
-        if (sheetName.toLowerCase().includes('all student') || sheetName.toLowerCase() === 'all') {
-          return;
-        }
-        
+        if (sheetName.toLowerCase().includes('all student') || sheetName.toLowerCase() === 'all') return;
         const ws = wb.Sheets[sheetName];
         const data = XLSX.utils.sheet_to_json(ws);
         
-        data.forEach(row => {
-          const studentObj = { ...row, sheetCategory: sheetName };
-          
-          Object.keys(row).forEach(key => {
-            const lowerKey = key.toLowerCase().trim();
-            if (lowerKey === 'class' || lowerKey === 'std' || lowerKey === 'standard') studentObj.Class = row[key];
-            else if (lowerKey === 'section' || lowerKey === 'sec' || lowerKey === 'batch') studentObj.Section = row[key];
-            else if (lowerKey === 'name' || lowerKey === 'student name' || lowerKey === 'studentname' || lowerKey === 'full name' || lowerKey === 'student\'s name') studentObj.Name = row[key];
-          });
-
-          if (!studentObj.Class) {
-            studentObj.Class = sheetName;
-          }
-
-          allStudentsData.push(studentObj);
-        });
+        if (data.length > 0) {
+          Object.keys(data[0]).forEach(k => allHeaders.add(k));
+          data.forEach(row => rawData.push({ ...row, _sheet: sheetName }));
+        }
       });
 
-      setStudents(allStudentsData);
-      setActiveCategory('All');
-      setActiveClass('All');
-      setActiveSection('All');
+      const headers = Array.from(allHeaders);
+      
+      // Auto-guess columns (The "Intelligent" Part)
+      let bestName = '', bestClass = '', bestSec = '', bestId = '';
+      headers.forEach(h => {
+        const l = h.toLowerCase().trim();
+        if (['name', 'student name', 'fullname', 'student\'s name', 'studentname'].includes(l)) bestName = h;
+        if (['class', 'std', 'standard', 'grade'].includes(l)) bestClass = h;
+        if (['sec', 'section', 'batch'].includes(l)) bestSec = h;
+        if (['roll', 'roll no', 'rollno', 'fee book', 'fee book no', 'id', 'admission no'].includes(l)) bestId = h;
+      });
+
+      setColumnMap({ name: bestName, class: bestClass, section: bestSec, identifier: bestId });
+      setPreviewData({ headers, rawData });
     };
     reader.readAsBinaryString(file);
     e.target.value = null;
   };
+
+  const confirmMapping = () => {
+    if (!previewData) return;
+    const finalData = previewData.rawData.map(row => {
+      const studentObj = { ...row, sheetCategory: row._sheet };
+      studentObj.Name = row[columnMap.name] || 'Unknown';
+      studentObj.Class = columnMap.class ? row[columnMap.class] : row._sheet;
+      studentObj.Section = columnMap.section ? row[columnMap.section] : '';
+      studentObj.IdentifierField = columnMap.identifier || 'RollNo';
+      studentObj.IdentifierValue = columnMap.identifier ? row[columnMap.identifier] : (row['RollNo'] || row['Roll No'] || '');
+      return studentObj;
+    });
+
+    setStudents(finalData);
+    setActiveCategory('All');
+    setActiveClass('All');
+    setActiveSection('All');
+    setPreviewData(null);
+  };
+
 
   const displayStudents = students.length > 0 ? students : [
     { Name: 'John Doe', Class: '10th', Section: 'A', RollNo: '101', sheetCategory: 'Middle' },
@@ -103,10 +121,33 @@ function App() {
       .filter(Boolean)
   )].sort();
 
+  const today = new Date().toISOString().split('T')[0];
+  const attendanceCache = JSON.parse(localStorage.getItem('attendanceDataCache') || '{}');
+  const feeConfig = JSON.parse(localStorage.getItem('feeConfig') || '{"count":3,"amount":500}');
+
+  const isDefaulter = (student) => {
+    const targetClass = `${student.Class} ${student.Section || ''}`.trim();
+    const status = attendanceCache[targetClass]?.[student.Name]?.[today];
+    const isAbsent = status === 'A';
+    
+    const feeDataRaw = localStorage.getItem(`fee_${student.Name}`);
+    let hasUnpaidFees = false;
+    if (feeDataRaw) {
+      const feeData = JSON.parse(feeDataRaw);
+      hasUnpaidFees = feeData.includes(false);
+    } else {
+      // If no fee data exists, they haven't paid anything
+      hasUnpaidFees = true;
+    }
+    
+    return isAbsent || hasUnpaidFees;
+  };
+
   const filteredStudents = displayStudents.filter(student => {
     const matchesCategory = activeCategory === 'All' || student.sheetCategory === activeCategory;
     const matchesClass = activeClass === 'All' || student.Class?.toString()?.trim() === activeClass;
     const matchesSection = activeSection === 'All' || student.Section === activeSection;
+    const matchesDefaulter = showDefaulters ? isDefaulter(student) : true;
                       
     const searchLower = searchQuery.toLowerCase();
     
@@ -115,7 +156,7 @@ function App() {
       return value.toString().toLowerCase().includes(searchLower);
     });
 
-    return matchesCategory && matchesClass && matchesSection && matchesSearch;
+    return matchesCategory && matchesClass && matchesSection && matchesDefaulter && matchesSearch;
   });
 
   if (activePage === 'attendance') {
@@ -139,6 +180,57 @@ function App() {
           />
         </Canvas>
       </div>
+
+      {/* Feature 1: Intelligent Excel Mapping Modal */}
+      <AnimatePresence>
+        {previewData && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+          >
+            <div style={{ background: '#fff', padding: '2rem', borderRadius: '15px', width: '90%', maxWidth: '600px', boxShadow: '0 10px 30px rgba(0,0,0,0.3)' }}>
+              <h2 style={{ fontFamily: 'Cormorant Garamond', fontSize: '2rem', marginTop: 0 }}>Map Your Columns</h2>
+              <p style={{ color: 'var(--text-light)' }}>We analyzed your Excel file. Please confirm the mapping below to ensure accuracy.</p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '2rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontWeight: 'bold' }}>Student Name Column:</label>
+                  <select value={columnMap.name} onChange={e => setColumnMap({...columnMap, name: e.target.value})} style={{ padding: '0.5rem', width: '250px', borderRadius: '8px' }}>
+                    <option value="">-- Select --</option>
+                    {previewData.headers.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontWeight: 'bold' }}>Class Column:</label>
+                  <select value={columnMap.class} onChange={e => setColumnMap({...columnMap, class: e.target.value})} style={{ padding: '0.5rem', width: '250px', borderRadius: '8px' }}>
+                    <option value="">Use Sheet Name if empty</option>
+                    {previewData.headers.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontWeight: 'bold' }}>Section Column:</label>
+                  <select value={columnMap.section} onChange={e => setColumnMap({...columnMap, section: e.target.value})} style={{ padding: '0.5rem', width: '250px', borderRadius: '8px' }}>
+                    <option value="">Leave empty if none</option>
+                    {previewData.headers.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontWeight: 'bold' }}>Identifier (Roll/Fee Book No):</label>
+                  <select value={columnMap.identifier} onChange={e => setColumnMap({...columnMap, identifier: e.target.value})} style={{ padding: '0.5rem', width: '250px', borderRadius: '8px' }}>
+                    <option value="">Leave empty if none</option>
+                    {previewData.headers.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                <button onClick={() => setPreviewData(null)} style={{ padding: '0.5rem 1rem', background: '#eaeaea', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Cancel</button>
+                <button onClick={confirmMapping} style={{ padding: '0.5rem 1.5rem', background: 'var(--text-accent)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Confirm & Import</button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="scroll-container">
         
@@ -204,6 +296,12 @@ function App() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{ flex: 1, margin: 0 }}
               />
+              <button 
+                onClick={() => setShowDefaulters(!showDefaulters)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: showDefaulters ? '#d32f2f' : '#fff', color: showDefaulters ? '#fff' : '#d32f2f', border: '1px solid #d32f2f', padding: '0.8rem 1.5rem', borderRadius: '30px', cursor: 'pointer', fontFamily: 'Cormorant Garamond', fontSize: '1rem', whiteSpace: 'nowrap', transition: 'all 0.3s' }}
+              >
+                {showDefaulters ? 'Viewing Defaulters' : 'Show Defaulters'}
+              </button>
               {students.length > 0 && (
                 <button 
                   onClick={() => fileInputRef.current?.click()}
