@@ -30,7 +30,13 @@ function App() {
   const [previewData, setPreviewData] = useState(null); // Intelligent Excel Parsing mapping state
   const [columnMap, setColumnMap] = useState({ name: '', class: '', section: '', identifier: '' });
   const [showDefaulters, setShowDefaulters] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const fileInputRef = useRef(null);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeCategory, activeClass, activeSection, searchQuery, showDefaulters]);
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -43,8 +49,17 @@ function App() {
       const allHeaders = new Set();
       const rawData = [];
 
-      wb.SheetNames.forEach(sheetName => {
-        if (sheetName.toLowerCase().includes('all student') || sheetName.toLowerCase() === 'all') return;
+      // Intelligent sheet selection
+      let sheetsToProcess = [];
+      const hasAllStudents = wb.SheetNames.some(s => s.toLowerCase().includes('all student'));
+      if (hasAllStudents) {
+        sheetsToProcess = wb.SheetNames.filter(s => s.toLowerCase().includes('all student'));
+      } else {
+        // Exclude common non-data sheets
+        sheetsToProcess = wb.SheetNames.filter(s => !['dashboard', 'summary', 'totals', 'raw entries', 'classwise summary', 'class totals'].includes(s.toLowerCase()));
+      }
+
+      sheetsToProcess.forEach(sheetName => {
         const ws = wb.Sheets[sheetName];
         const data = XLSX.utils.sheet_to_json(ws);
         
@@ -75,6 +90,8 @@ function App() {
 
   const confirmMapping = () => {
     if (!previewData) return;
+    const feeConfig = JSON.parse(localStorage.getItem('feeConfig') || '{"count":3,"amount":500}');
+
     const finalData = previewData.rawData.map(row => {
       const studentObj = { ...row, sheetCategory: row._sheet };
       studentObj.Name = row[columnMap.name] || 'Unknown';
@@ -82,6 +99,26 @@ function App() {
       studentObj.Section = columnMap.section ? row[columnMap.section] : '';
       studentObj.IdentifierField = columnMap.identifier || 'RollNo';
       studentObj.IdentifierValue = columnMap.identifier ? row[columnMap.identifier] : (row['RollNo'] || row['Roll No'] || '');
+
+      // Auto-sync fees
+      const installments = Array(feeConfig.count).fill(false);
+      Object.keys(row).forEach(key => {
+        const k = key.toUpperCase();
+        if (k.includes('INSTALL') && !k.match(/^INSTALLMENT$/i)) {
+          const match = k.match(/(\d+)/);
+          if (match) {
+            const index = parseInt(match[1]) - 1;
+            if (index >= 0 && index < feeConfig.count) {
+              const val = row[key];
+              if (val > 0 || (typeof val === 'string' && val.toLowerCase() === 'paid')) {
+                installments[index] = true;
+              }
+            }
+          }
+        }
+      });
+      localStorage.setItem(`fee_${studentObj.Name}`, JSON.stringify(installments));
+
       return studentObj;
     });
 
@@ -158,6 +195,25 @@ function App() {
 
     return matchesCategory && matchesClass && matchesSection && matchesDefaulter && matchesSearch;
   });
+
+  const ITEMS_PER_PAGE = 50;
+  const totalPages = Math.ceil(filteredStudents.length / ITEMS_PER_PAGE);
+  const currentStudents = filteredStudents.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  const exportToExcel = () => {
+    if (filteredStudents.length === 0) return;
+    
+    // Clean up internal fields before export so the excel looks nice
+    const exportData = filteredStudents.map(s => {
+      const { _sheet, sheetCategory, IdentifierField, IdentifierValue, ...cleanData } = s;
+      return cleanData;
+    });
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Filtered_Students");
+    XLSX.writeFile(wb, "Filtered_Students_List.xlsx");
+  };
 
   if (activePage === 'attendance') {
     return (
@@ -302,6 +358,12 @@ function App() {
               >
                 {showDefaulters ? 'Viewing Defaulters' : 'Show Defaulters'}
               </button>
+              <button 
+                onClick={exportToExcel}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#4caf50', color: '#fff', border: 'none', padding: '0.8rem 1.5rem', borderRadius: '30px', cursor: 'pointer', fontFamily: 'Cormorant Garamond', fontSize: '1rem', whiteSpace: 'nowrap', transition: 'all 0.3s' }}
+              >
+                Export Excel
+              </button>
               {students.length > 0 && (
                 <button 
                   onClick={() => fileInputRef.current?.click()}
@@ -363,7 +425,7 @@ function App() {
           </motion.div>
 
           <div className="student-grid">
-            {filteredStudents.slice(0, 50).map((student, idx) => (
+            {currentStudents.map((student, idx) => (
               <div 
                 className="student-card" 
                 key={`${student.Name}-${idx}`}
@@ -385,8 +447,12 @@ function App() {
                   
                   <div className="student-details">
                     {Object.entries(student).map(([key, value]) => {
-                      if (['Name', 'name', 'Class', 'class', 'Section', 'sheetCategory'].includes(key)) return null;
-                      if (!value) return null;
+                      const kLower = key.toLowerCase();
+                      // Hide internal fields and unwanted raw columns
+                      if (['name', 'class', 'section', 'sheetcategory', '_sheet', 'identifierfield', 'identifiervalue'].includes(kLower)) return null;
+                      if (kLower.includes('install')) return null; // Hides '1 INSTALL', 'INSTALLMENT', etc.
+                      if (value === null || value === undefined || value === '') return null;
+                      
                       return (
                         <div className="detail-row" key={key}>
                           <span>{key}</span>
@@ -406,11 +472,23 @@ function App() {
             )}
           </div>
 
-          {filteredStudents.length > 50 && (
-            <div style={{ textAlign: 'center', marginTop: '3rem' }}>
-              <p style={{ color: 'var(--text-light)', fontStyle: 'italic', fontFamily: 'Cormorant Garamond', fontSize: '1.2rem' }}>
-                Showing 50 of {filteredStudents.length} students. Please use the search bar to find specific students.
-              </p>
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', marginTop: '3rem' }}>
+              <button 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                style={{ padding: '0.8rem 1.5rem', borderRadius: '30px', border: '1px solid var(--border-color)', background: '#fff', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1, fontFamily: 'Cormorant Garamond', fontSize: '1rem' }}
+              >Previous</button>
+              
+              <span style={{ fontFamily: 'Cormorant Garamond', fontSize: '1.2rem', fontStyle: 'italic', color: 'var(--text-light)' }}>
+                Page {currentPage} of {totalPages}
+              </span>
+              
+              <button 
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                style={{ padding: '0.8rem 1.5rem', borderRadius: '30px', border: '1px solid var(--border-color)', background: '#fff', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', opacity: currentPage === totalPages ? 0.5 : 1, fontFamily: 'Cormorant Garamond', fontSize: '1rem' }}
+              >Next</button>
             </div>
           )}
         </section>

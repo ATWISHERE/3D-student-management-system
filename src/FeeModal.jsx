@@ -32,6 +32,35 @@ function InstallmentOrb({ index, isPaid, onClick, position }) {
   );
 }
 
+function InfoOrb({ label, value, position }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <Float speed={2} rotationIntensity={1} floatIntensity={1}>
+      <group 
+        position={position} 
+        onPointerOver={(e) => { e.stopPropagation(); setHovered(true); }}
+        onPointerOut={(e) => { e.stopPropagation(); setHovered(false); }}
+      >
+        <Sphere args={[0.7, 64, 64]} scale={hovered ? 1.05 : 1}>
+          <MeshDistortMaterial
+            color="#dcdcdc"
+            envMapIntensity={2}
+            clearcoat={1} clearcoatRoughness={0.1}
+            metalness={0.8} roughness={0.2}
+            distort={0.1} speed={2}
+          />
+        </Sphere>
+        <Text position={[0, 0.18, 0.72]} fontSize={0.12} color="#001f3f" outlineWidth={0.015} outlineColor="#ffffff" anchorX="center" anchorY="middle" letterSpacing={0.1} fontStyle="bold">
+          {label}
+        </Text>
+        <Text position={[0, -0.12, 0.72]} fontSize={value && value.toString().length > 6 ? 0.16 : 0.25} color="#001f3f" outlineWidth={0.015} outlineColor="#ffffff" anchorX="center" anchorY="middle" maxWidth={1.2} textAlign="center" fontStyle="bold">
+          {value || 'N/A'}
+        </Text>
+      </group>
+    </Float>
+  );
+}
+
 export default function FeeModal({ student, onClose }) {
   // Feature 2: Customizable Fee Structures
   const [feeConfig, setFeeConfig] = useState(() => {
@@ -103,10 +132,29 @@ export default function FeeModal({ student, onClose }) {
           style={{
             background: 'rgba(255, 255, 255, 0.95)', border: '1px solid rgba(153, 127, 99, 0.3)',
             borderRadius: '24px', padding: '3rem', width: '90%', maxWidth: '800px',
-            boxShadow: '0 25px 50px -12px rgba(153, 127, 99, 0.25)', position: 'relative', overflow: 'hidden'
+            boxShadow: '0 25px 50px -12px rgba(153, 127, 99, 0.25)', position: 'relative', overflow: 'visible'
           }}
         >
-          <div style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', display: 'flex', gap: '1rem' }}>
+          {/* External Floating Canvas for Info Orbs */}
+          <div style={{ position: 'absolute', right: '-120px', top: '-10%', height: '120%', width: '300px', zIndex: 50, pointerEvents: 'none' }}>
+            <Canvas camera={{ position: [0, 0, 9], fov: 45 }} style={{ pointerEvents: 'auto' }}>
+              <ambientLight intensity={0.6} />
+              <spotLight position={[5, 10, 5]} angle={0.2} penumbra={1} intensity={1.5} color="#ffffff" />
+              <Environment preset="city" />
+              <InfoOrb 
+                label="SHEET NAME" 
+                value={student.sheetCategory || student._sheet || 'ALL STUDENTS'} 
+                position={[0, 1.4, 0]} 
+              />
+              <InfoOrb 
+                label={(student.IdentifierField || 'IDENTIFIER').toUpperCase()} 
+                value={student.IdentifierValue || student.RollNo || 'N/A'} 
+                position={[0, -1.4, 0]} 
+              />
+            </Canvas>
+          </div>
+
+          <div style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', display: 'flex', gap: '1rem', zIndex: 60 }}>
             <button onClick={() => setShowConfig(!showConfig)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-light)' }} title="Configure Global Fee Settings">
               <Settings size={24} />
             </button>
@@ -160,7 +208,7 @@ export default function FeeModal({ student, onClose }) {
           </AnimatePresence>
 
           <div style={{ height: '350px', width: '100%', position: 'relative' }}>
-            <Canvas camera={{ position: [0, 0, feeConfig.count > 5 ? 10 : 6], fov: 45 }}>
+            <Canvas camera={{ position: [0, 0, feeConfig.count > 5 ? 11 : 8.5], fov: 45 }}>
               <ambientLight intensity={0.5} />
               <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1} color="#FFD700" />
               <Environment preset="city" />

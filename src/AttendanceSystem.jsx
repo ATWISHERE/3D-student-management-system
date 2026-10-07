@@ -196,7 +196,19 @@ export default function AttendanceSystem({ students, onBack }) {
       return;
     }
     
-    const targetStatus = allMarkState === 'present' ? 'P' : 'A';
+    let targetStatus = '';
+    let nextState = 'present';
+
+    if (allMarkState === 'present') {
+      targetStatus = 'P';
+      nextState = 'absent';
+    } else if (allMarkState === 'absent') {
+      targetStatus = 'A';
+      nextState = 'clear';
+    } else if (allMarkState === 'clear') {
+      targetStatus = '';
+      nextState = 'present';
+    }
     
     setAttendanceData(prev => {
       const newData = { ...prev };
@@ -212,7 +224,7 @@ export default function AttendanceSystem({ students, onBack }) {
       return newData;
     });
 
-    setAllMarkState(allMarkState === 'present' ? 'absent' : 'present');
+    setAllMarkState(nextState);
   };
 
   const totalCount = currentClassStudents.length;
@@ -441,9 +453,14 @@ export default function AttendanceSystem({ students, onBack }) {
               </div>
               <button 
                 onClick={handleMarkAllToggle}
-                style={{ background: allMarkState === 'present' ? '#e8f5e9' : '#ffebee', color: allMarkState === 'present' ? '#2e7d32' : '#c62828', border: `1px solid ${allMarkState === 'present' ? '#c8e6c9' : '#ffcdd2'}`, padding: '0.5rem 1rem', borderRadius: '20px', fontSize: '0.9rem', cursor: 'pointer', transition: 'all 0.3s' }}
+                style={{ 
+                  background: allMarkState === 'present' ? '#e8f5e9' : (allMarkState === 'absent' ? '#ffebee' : '#f5f5f5'), 
+                  color: allMarkState === 'present' ? '#2e7d32' : (allMarkState === 'absent' ? '#c62828' : '#666'), 
+                  border: `1px solid ${allMarkState === 'present' ? '#c8e6c9' : (allMarkState === 'absent' ? '#ffcdd2' : '#e0e0e0')}`, 
+                  padding: '0.5rem 1rem', borderRadius: '20px', fontSize: '0.9rem', cursor: 'pointer', transition: 'all 0.3s' 
+                }}
               >
-                {allMarkState === 'present' ? 'Mark All Present' : 'Mark All Absent'}
+                {allMarkState === 'present' ? 'Mark All Present' : (allMarkState === 'absent' ? 'Mark All Absent' : 'Clear / Reset All')}
               </button>
             </div>
 
