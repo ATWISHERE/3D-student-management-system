@@ -44,7 +44,13 @@ function StarNode({ student, initialPos, targetPos, absentPos, gridPos, isPresen
   const meshRef = useRef();
   const [hovered, setHovered] = useState(false);
 
-  const currentPos = useRef(new THREE.Vector3().copy(initialPos));
+  const currentPos = useRef(initialPos ? new THREE.Vector3().copy(initialPos) : new THREE.Vector3());
+
+  useEffect(() => {
+    if (initialPos && currentPos.current && currentPos.current.lengthSq() === 0) {
+      currentPos.current.copy(initialPos);
+    }
+  }, [initialPos]);
 
   useFrame((state, delta) => {
     let destination;
@@ -52,8 +58,8 @@ function StarNode({ student, initialPos, targetPos, absentPos, gridPos, isPresen
     else if (isAbsent) destination = absentPos;
     else destination = isGathered ? gridPos : initialPos;
     
-    currentPos.current.lerp(destination, 0.05);
-    if (groupRef.current) {
+    if (destination && groupRef.current) {
+      currentPos.current.lerp(destination, 0.05);
       groupRef.current.position.copy(currentPos.current);
     }
     
@@ -69,13 +75,19 @@ function StarNode({ student, initialPos, targetPos, absentPos, gridPos, isPresen
   const emColor = isPresent ? clusterColor : (isAbsent ? '#cc0000' : (hovered ? '#555555' : (isGathered ? '#5588aa' : '#000000')));
 
   return (
-    <group ref={groupRef}>
-      <mesh 
-        ref={meshRef}
-        onClick={(e) => { e.stopPropagation(); onClick(); }}
-        onPointerOver={(e) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = 'pointer'; }}
-        onPointerOut={(e) => { e.stopPropagation(); setHovered(false); document.body.style.cursor = 'auto'; }}
-      >
+    <group 
+      ref={groupRef}
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      onPointerOver={(e) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = 'pointer'; }}
+      onPointerOut={(e) => { e.stopPropagation(); setHovered(false); document.body.style.cursor = 'auto'; }}
+    >
+      {/* Invisible enlarged hit target to make clicking dead/dim stars effortless */}
+      <mesh>
+        <sphereGeometry args={[1.2, 16, 16]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+
+      <mesh ref={meshRef}>
         <icosahedronGeometry args={[0.5, 1]} />
         {ecoMode ? (
           <meshStandardMaterial 
@@ -113,6 +125,19 @@ function StarNode({ student, initialPos, targetPos, absentPos, gridPos, isPresen
         >
           {student.Name}
         </Text>
+        {student.Class && (
+          <Text
+            position={[0, -1.65, 0]}
+            fontSize={0.22}
+            color={isPresent ? '#aaddff' : (isAbsent ? '#ff9999' : '#888888')}
+            anchorX="center"
+            anchorY="middle"
+            outlineWidth={0.02}
+            outlineColor="#000000"
+          >
+            {`${student.Class} ${student.Section || ''}`.trim()}
+          </Text>
+        )}
       </Billboard>
     </group>
   );
@@ -157,14 +182,16 @@ function ConstellationLines({ selectedShape, isGathered, isFinished }) {
   );
 }
 
-export default function ConstellationGame({ students, attendanceData, selectedClass, selectedDate, setAttendanceStatus, markRemainingAbsent }) {
+export default function ConstellationGame({ students, attendanceData, selectedClass, selectedClasses, selectedDate, setAttendanceStatus, markRemainingAbsent }) {
   const [isGathered, setIsGathered] = useState(false);
   const [selectedShape, setSelectedShape] = useState(() => Object.keys(SHAPES)[0]);
   const [ecoMode, setEcoMode] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
   const shapeKeys = Object.keys(SHAPES);
 
-  const studentNamesStr = useMemo(() => students.map(s => s.Name).join(','), [students]);
+  const getStudentClass = (s) => (s.Class ? `${s.Class} ${s.Section || ''}`.trim() : selectedClass);
+
+  const studentKeysStr = useMemo(() => students.map((s, i) => `${s.Class || ''}_${s.Section || ''}_${s.Name}_${i}`).join(','), [students]);
 
   const positions = useMemo(() => {
     const initial = [];
@@ -175,7 +202,7 @@ export default function ConstellationGame({ students, attendanceData, selectedCl
     const presentIndices = [];
     const absentIndices = [];
 
-    const columns = Math.ceil(Math.sqrt(students.length));
+    const columns = Math.ceil(Math.sqrt(students.length)) || 1;
     const startX = -((columns - 1) * 2.5) / 2;
     const startY = ((Math.ceil(students.length / columns) - 1) * 2.5) / 2;
 
@@ -184,7 +211,8 @@ export default function ConstellationGame({ students, attendanceData, selectedCl
       const rand2 = Math.abs(Math.sin(i * 78.233 + 4.56));
       const rand3 = Math.abs(Math.sin(i * 45.123 + 7.89));
 
-      const status = attendanceData[selectedClass]?.[student.Name]?.[selectedDate];
+      const studentClass = getStudentClass(student);
+      const status = attendanceData[studentClass]?.[student.Name]?.[selectedDate];
       if (status === 'P') presentIndices.push(i);
       else absentIndices.push(i);
 
@@ -227,7 +255,7 @@ export default function ConstellationGame({ students, attendanceData, selectedCl
     const distributedPoints = distributePoints(shapePoints, presentIndices.length);
 
     presentIndices.forEach((studentIdx, pIdx) => {
-      const [x, y] = distributedPoints[pIdx];
+      const [x, y] = distributedPoints[pIdx] || [0, 0];
       target[studentIdx] = new THREE.Vector3(x * 12, y * 12, 0);
       absentTarget[studentIdx] = new THREE.Vector3(x * 12, y * 12, 0);
     });
@@ -252,22 +280,24 @@ export default function ConstellationGame({ students, attendanceData, selectedCl
           const idx2 = absentIndices[j];
           const p1 = target[idx1];
           const p2 = target[idx2];
-          const dist = p1.distanceTo(p2);
-          const minDistance = 4.5;
-          if (dist < minDistance && dist > 0.001) {
-            const overlap = minDistance - dist;
-            const pushDir = new THREE.Vector3().subVectors(p1, p2).normalize().multiplyScalar(overlap * 0.5);
-            p1.add(pushDir);
-            p2.sub(pushDir);
-            absentTarget[idx1].copy(p1);
-            absentTarget[idx2].copy(p2);
+          if (p1 && p2) {
+            const dist = p1.distanceTo(p2);
+            const minDistance = 4.5;
+            if (dist < minDistance && dist > 0.001) {
+              const overlap = minDistance - dist;
+              const pushDir = new THREE.Vector3().subVectors(p1, p2).normalize().multiplyScalar(overlap * 0.5);
+              p1.add(pushDir);
+              p2.sub(pushDir);
+              absentTarget[idx1].copy(p1);
+              absentTarget[idx2].copy(p2);
+            }
           }
         }
       }
     }
     
     return { initial, target, absentTarget, grid };
-  }, [studentNamesStr, attendanceData, selectedClass, selectedDate, selectedShape]);
+  }, [studentKeysStr, attendanceData, selectedClass, selectedDate, selectedShape, students]);
 
   return (
     <div style={{ width: '100%', height: '100%', background: 'linear-gradient(to bottom, #101c3a, #1a2a50)' }}>
@@ -280,14 +310,15 @@ export default function ConstellationGame({ students, attendanceData, selectedCl
         <Sparkles count={ecoMode ? 100 : 500} scale={30} size={4} speed={0.4} opacity={0.2} color="#aaddff" />
         
         {students.map((student, idx) => {
-          const status = attendanceData[selectedClass]?.[student.Name]?.[selectedDate];
+          const studentClass = getStudentClass(student);
+          const status = attendanceData[studentClass]?.[student.Name]?.[selectedDate];
           const isPresent = status === 'P';
           const isAbsent = status === 'A';
           const clusterColor = COLORS[Math.floor(idx / 10) % COLORS.length];
           
           return (
             <StarNode
-              key={student.Name}
+              key={`${studentClass}_${student.Name}_${idx}`}
               student={student}
               initialPos={positions.initial[idx]}
               targetPos={positions.target[idx]}
@@ -300,9 +331,9 @@ export default function ConstellationGame({ students, attendanceData, selectedCl
               ecoMode={ecoMode}
               onClick={() => {
                 if (!isPresent) {
-                  setAttendanceStatus(student.Name, 'P');
+                  setAttendanceStatus(student.Name, 'P', studentClass);
                 } else {
-                  setAttendanceStatus(student.Name, '');
+                  setAttendanceStatus(student.Name, '', studentClass);
                 }
               }}
             />

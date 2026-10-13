@@ -57,13 +57,16 @@ function TargetObject({ student, index, total, isPresent, isAbsent, onClick }) {
   const emissiveColor = isAbsent ? '#220000' : (hovered ? '#ff5555' : '#ff0000');
 
   return (
-    <group position={initialPos} ref={groupRef}>
+    <group 
+      position={initialPos} 
+      ref={groupRef}
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      onPointerOver={(e) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = 'crosshair'; }}
+      onPointerOut={(e) => { e.stopPropagation(); setHovered(false); document.body.style.cursor = 'auto'; }}
+    >
       <Float speed={2} rotationIntensity={0} floatIntensity={0.5}>
         <mesh 
           ref={meshRef}
-          onClick={(e) => { e.stopPropagation(); onClick(); }}
-          onPointerOver={(e) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = 'crosshair'; }}
-          onPointerOut={(e) => { e.stopPropagation(); setHovered(false); document.body.style.cursor = 'auto'; }}
           rotation={[Math.PI / 2, 0, 0]}
         >
           <cylinderGeometry args={[1.5, 1.5, 0.2, 64]} />
@@ -81,12 +84,19 @@ function TargetObject({ student, index, total, isPresent, isAbsent, onClick }) {
         <Text fontSize={0.6} color="#ffffff" outlineWidth={0.06} outlineColor="#000000" fontWeight="bold">
           {student.Name}
         </Text>
+        {student.Class && (
+          <Text position={[0, -0.6, 0]} fontSize={0.35} color="#ff9999" outlineWidth={0.04} outlineColor="#000000">
+            {`${student.Class} ${student.Section || ''}`.trim()}
+          </Text>
+        )}
       </Billboard>
     </group>
   );
 }
 
-export default function TargetPracticeGame({ students, attendanceData, selectedClass, selectedDate, setAttendanceStatus, markRemainingAbsent }) {
+export default function TargetPracticeGame({ students, attendanceData, selectedClass, selectedClasses, selectedDate, setAttendanceStatus, markRemainingAbsent }) {
+  const getStudentClass = (s) => (s.Class ? `${s.Class} ${s.Section || ''}`.trim() : selectedClass);
+
   return (
     <div style={{ width: '100%', height: '100%', background: 'linear-gradient(to bottom, #111827, #030712)' }}>
       <Canvas camera={{ position: [0, 0, 30], fov: 60 }}>
@@ -95,12 +105,17 @@ export default function TargetPracticeGame({ students, attendanceData, selectedC
         <spotLight position={[0, 0, 20]} angle={0.5} penumbra={1} intensity={2} color="#ff3333" />
 
         {students.map((student, idx) => {
-          const status = attendanceData[selectedClass]?.[student.Name]?.[selectedDate];
+          const studentClass = getStudentClass(student);
+          const status = attendanceData[studentClass]?.[student.Name]?.[selectedDate];
           return (
             <TargetObject
-              key={student.Name} student={student} index={idx} total={students.length}
-              isPresent={status === 'P'} isAbsent={status === 'A'}
-              onClick={() => { if (status !== 'P') setAttendanceStatus(student.Name, 'P'); }}
+              key={`${studentClass}_${student.Name}_${idx}`}
+              student={student} 
+              index={idx} 
+              total={students.length}
+              isPresent={status === 'P'} 
+              isAbsent={status === 'A'}
+              onClick={() => { if (status !== 'P') setAttendanceStatus(student.Name, 'P', studentClass); }}
             />
           );
         })}

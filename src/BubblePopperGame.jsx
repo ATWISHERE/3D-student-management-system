@@ -37,14 +37,15 @@ function BubbleNode({ student, initialPos, isPresent, isAbsent, onClick }) {
   const emissiveColor = isAbsent ? '#440000' : (hovered ? '#66ccff' : '#003366');
 
   return (
-    <group ref={groupRef} position={initialPos}>
+    <group 
+      ref={groupRef} 
+      position={initialPos}
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      onPointerOver={(e) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = 'pointer'; }}
+      onPointerOut={(e) => { e.stopPropagation(); setHovered(false); document.body.style.cursor = 'auto'; }}
+    >
       <Float speed={2} rotationIntensity={0.5} floatIntensity={1}>
-        <mesh 
-          ref={meshRef}
-          onClick={(e) => { e.stopPropagation(); onClick(); }}
-          onPointerOver={(e) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = 'pointer'; }}
-          onPointerOut={(e) => { e.stopPropagation(); setHovered(false); document.body.style.cursor = 'auto'; }}
-        >
+        <mesh ref={meshRef}>
           <sphereGeometry args={[1.2, 64, 64]} />
           <MeshDistortMaterial 
             color={materialColor}
@@ -75,12 +76,25 @@ function BubbleNode({ student, initialPos, isPresent, isAbsent, onClick }) {
         >
           {student.Name}
         </Text>
+        {student.Class && (
+          <Text
+            position={[0, -0.4, 0]}
+            fontSize={0.25}
+            color="#aaddff"
+            anchorX="center"
+            anchorY="middle"
+            outlineWidth={0.03}
+            outlineColor="#000000"
+          >
+            {`${student.Class} ${student.Section || ''}`.trim()}
+          </Text>
+        )}
       </Billboard>
     </group>
   );
 }
 
-export default function BubblePopperGame({ students, attendanceData, selectedClass, selectedDate, setAttendanceStatus, markRemainingAbsent }) {
+export default function BubblePopperGame({ students, attendanceData, selectedClass, selectedClasses, selectedDate, setAttendanceStatus, markRemainingAbsent }) {
   const initialPositions = useMemo(() => {
     return students.map((_, i) => new THREE.Vector3(
       (Math.random() - 0.5) * 25,
@@ -88,6 +102,8 @@ export default function BubblePopperGame({ students, attendanceData, selectedCla
       (Math.random() - 0.5) * 10
     ));
   }, [students]);
+
+  const getStudentClass = (s) => (s.Class ? `${s.Class} ${s.Section || ''}`.trim() : selectedClass);
 
   return (
     <div style={{ width: '100%', height: '100%', background: 'radial-gradient(circle at center, #004e92 0%, #000428 100%)' }}>
@@ -100,16 +116,17 @@ export default function BubblePopperGame({ students, attendanceData, selectedCla
         <Sparkles count={300} scale={30} size={3} speed={0.5} opacity={0.3} color="#88ccff" />
 
         {students.map((student, idx) => {
-          const status = attendanceData[selectedClass]?.[student.Name]?.[selectedDate];
+          const studentClass = getStudentClass(student);
+          const status = attendanceData[studentClass]?.[student.Name]?.[selectedDate];
           return (
             <BubbleNode
-              key={student.Name}
+              key={`${studentClass}_${student.Name}_${idx}`}
               student={student}
               initialPos={initialPositions[idx]}
               isPresent={status === 'P'}
               isAbsent={status === 'A'}
               onClick={() => {
-                if (status !== 'P') setAttendanceStatus(student.Name, 'P');
+                if (status !== 'P') setAttendanceStatus(student.Name, 'P', studentClass);
               }}
             />
           );

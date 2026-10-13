@@ -35,15 +35,21 @@ function StarObject({ student, initialPos, isPresent, isAbsent, onClick }) {
   const emissiveIntensity = hovered ? 2 : (isAbsent ? 0.5 : 1);
 
   return (
-    <group ref={groupRef} position={initialPos}>
+    <group 
+      ref={groupRef} 
+      position={initialPos}
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      onPointerOver={(e) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = 'pointer'; }}
+      onPointerOut={(e) => { e.stopPropagation(); setHovered(false); document.body.style.cursor = 'auto'; }}
+    >
+      {/* Invisible enlarged hit target for easy clicking */}
+      <mesh>
+        <sphereGeometry args={[1.2, 16, 16]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+
       <Trail width={0.5} length={4} color={materialColor} attenuation={(t) => t * t}>
-        <mesh 
-          ref={meshRef}
-          onClick={(e) => { e.stopPropagation(); onClick(); }}
-          onPointerOver={(e) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = 'pointer'; }}
-          onPointerOut={(e) => { e.stopPropagation(); setHovered(false); document.body.style.cursor = 'auto'; }}
-        >
-          {/* Made star smaller: args=[0.5, 0] instead of [1, 0] */}
+        <mesh ref={meshRef}>
           <octahedronGeometry args={[0.5, 0]} />
           <meshStandardMaterial 
             color={materialColor} 
@@ -64,13 +70,20 @@ function StarObject({ student, initialPos, isPresent, isAbsent, onClick }) {
         <Text fontSize={0.4} color="#ffffff" outlineWidth={0.05} outlineColor="#000000" fontWeight="bold">
           {student.Name}
         </Text>
+        {student.Class && (
+          <Text position={[0, -0.4, 0]} fontSize={0.22} color="#ffdd88" outlineWidth={0.03} outlineColor="#000000">
+            {`${student.Class} ${student.Section || ''}`.trim()}
+          </Text>
+        )}
       </Billboard>
     </group>
   );
 }
 
-export default function FallingStarsGame({ students, attendanceData, selectedClass, selectedDate, setAttendanceStatus, markRemainingAbsent }) {
+export default function FallingStarsGame({ students, attendanceData, selectedClass, selectedClasses, selectedDate, setAttendanceStatus, markRemainingAbsent }) {
   const initialPositions = useMemo(() => students.map(() => new THREE.Vector3((Math.random() - 0.5) * 30, Math.random() * 30 + 5, (Math.random() - 0.5) * 10)), [students]);
+
+  const getStudentClass = (s) => (s.Class ? `${s.Class} ${s.Section || ''}`.trim() : selectedClass);
 
   return (
     <div style={{ width: '100%', height: '100%', background: 'radial-gradient(circle at bottom, #2b003b 0%, #050510 100%)' }}>
@@ -80,12 +93,16 @@ export default function FallingStarsGame({ students, attendanceData, selectedCla
         <Sparkles count={200} scale={40} size={1} color="#aaaaff" opacity={0.2} speed={0.1} />
 
         {students.map((student, idx) => {
-          const status = attendanceData[selectedClass]?.[student.Name]?.[selectedDate];
+          const studentClass = getStudentClass(student);
+          const status = attendanceData[studentClass]?.[student.Name]?.[selectedDate];
           return (
             <StarObject
-              key={student.Name} student={student} initialPos={initialPositions[idx]}
-              isPresent={status === 'P'} isAbsent={status === 'A'}
-              onClick={() => { if (status !== 'P') setAttendanceStatus(student.Name, 'P'); }}
+              key={`${studentClass}_${student.Name}_${idx}`}
+              student={student} 
+              initialPos={initialPositions[idx]}
+              isPresent={status === 'P'} 
+              isAbsent={status === 'A'}
+              onClick={() => { if (status !== 'P') setAttendanceStatus(student.Name, 'P', studentClass); }}
             />
           );
         })}

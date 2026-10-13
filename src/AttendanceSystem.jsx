@@ -158,15 +158,22 @@ export default function AttendanceSystem({ students, onBack }) {
 
   const isPastDate = selectedDate !== new Date().toISOString().split('T')[0];
 
-  const setAttendanceStatus = (studentName, status) => {
+  const currentClassStudents = activeStudents.filter(s => 
+    selectedClasses.includes(`${s.Class} ${s.Section || ''}`.trim())
+  );
+
+  const setAttendanceStatus = (studentName, status, targetClassOverride) => {
     if (isPastDate && !editMode) {
       alert("Please enable Admin Edit Mode (Gear Icon) to change past attendance.");
       return;
     }
 
     setAttendanceData(prev => {
-      const studentObj = currentClassStudents.find(s => s.Name === studentName);
-      const targetClass = studentObj ? `${studentObj.Class} ${studentObj.Section || ''}`.trim() : selectedClasses[0];
+      const studentObj = currentClassStudents.find(s => 
+        s.Name === studentName && (!targetClassOverride || `${s.Class} ${s.Section || ''}`.trim() === targetClassOverride)
+      ) || currentClassStudents.find(s => s.Name === studentName);
+
+      const targetClass = targetClassOverride || (studentObj ? `${studentObj.Class} ${studentObj.Section || ''}`.trim() : selectedClasses[0]);
 
       const currentClassData = prev[targetClass] || {};
       const studentData = currentClassData[studentName] || {};
@@ -186,9 +193,26 @@ export default function AttendanceSystem({ students, onBack }) {
     });
   };
 
-  const currentClassStudents = activeStudents.filter(s => 
-    selectedClasses.includes(`${s.Class} ${s.Section || ''}`.trim())
-  );
+  const markRemainingAbsent = () => {
+    if (isPastDate && !editMode) {
+      alert("Please enable Admin Edit Mode to change past attendance.");
+      return;
+    }
+    setAttendanceData(prev => {
+      const newData = { ...prev };
+      currentClassStudents.forEach(student => {
+        const targetClass = `${student.Class} ${student.Section || ''}`.trim();
+        if (!newData[targetClass]) newData[targetClass] = {};
+        if (!newData[targetClass][student.Name]) newData[targetClass][student.Name] = {};
+        
+        // If not already marked 'P', mark as 'A'
+        if (newData[targetClass][student.Name][selectedDate] !== 'P') {
+          newData[targetClass][student.Name][selectedDate] = 'A';
+        }
+      });
+      return newData;
+    });
+  };
 
   const handleMarkAllToggle = () => {
     if (isPastDate && !editMode) {
@@ -381,10 +405,10 @@ export default function AttendanceSystem({ students, onBack }) {
         
         {activeView === 'game' ? (
           <>
-            {selectedGame === 'constellation' && <ConstellationGame students={currentClassStudents} attendanceData={attendanceData} selectedClass={selectedClasses[0]} selectedDate={selectedDate} setAttendanceStatus={setAttendanceStatus} markRemainingAbsent={() => {}} />}
-            {selectedGame === 'bubble' && <BubblePopperGame students={currentClassStudents} attendanceData={attendanceData} selectedClass={selectedClasses[0]} selectedDate={selectedDate} setAttendanceStatus={setAttendanceStatus} markRemainingAbsent={() => {}} />}
-            {selectedGame === 'falling' && <FallingStarsGame students={currentClassStudents} attendanceData={attendanceData} selectedClass={selectedClasses[0]} selectedDate={selectedDate} setAttendanceStatus={setAttendanceStatus} markRemainingAbsent={() => {}} />}
-            {selectedGame === 'target' && <TargetPracticeGame students={currentClassStudents} attendanceData={attendanceData} selectedClass={selectedClasses[0]} selectedDate={selectedDate} setAttendanceStatus={setAttendanceStatus} markRemainingAbsent={() => {}} />}
+            {selectedGame === 'constellation' && <ConstellationGame students={currentClassStudents} attendanceData={attendanceData} selectedClass={selectedClasses[0]} selectedClasses={selectedClasses} selectedDate={selectedDate} setAttendanceStatus={setAttendanceStatus} markRemainingAbsent={markRemainingAbsent} />}
+            {selectedGame === 'bubble' && <BubblePopperGame students={currentClassStudents} attendanceData={attendanceData} selectedClass={selectedClasses[0]} selectedClasses={selectedClasses} selectedDate={selectedDate} setAttendanceStatus={setAttendanceStatus} markRemainingAbsent={markRemainingAbsent} />}
+            {selectedGame === 'falling' && <FallingStarsGame students={currentClassStudents} attendanceData={attendanceData} selectedClass={selectedClasses[0]} selectedClasses={selectedClasses} selectedDate={selectedDate} setAttendanceStatus={setAttendanceStatus} markRemainingAbsent={markRemainingAbsent} />}
+            {selectedGame === 'target' && <TargetPracticeGame students={currentClassStudents} attendanceData={attendanceData} selectedClass={selectedClasses[0]} selectedClasses={selectedClasses} selectedDate={selectedDate} setAttendanceStatus={setAttendanceStatus} markRemainingAbsent={markRemainingAbsent} />}
           </>
         ) : (
           <motion.div 
@@ -515,7 +539,7 @@ export default function AttendanceSystem({ students, onBack }) {
 
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
                         <button 
-                          onClick={() => setAttendanceStatus(student.Name, 'P')}
+                          onClick={() => setAttendanceStatus(student.Name, 'P', targetClass)}
                           style={{ 
                             display: 'flex', alignItems: 'center', gap: '0.3rem',
                             background: status === 'P' ? '#4caf50' : '#f5f5f5', 
@@ -527,7 +551,7 @@ export default function AttendanceSystem({ students, onBack }) {
                           <Check size={16} /> Present
                         </button>
                         <button 
-                          onClick={() => setAttendanceStatus(student.Name, 'A')}
+                          onClick={() => setAttendanceStatus(student.Name, 'A', targetClass)}
                           style={{ 
                             display: 'flex', alignItems: 'center', gap: '0.3rem',
                             background: status === 'A' ? '#f44336' : '#f5f5f5', 
