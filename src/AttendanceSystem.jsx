@@ -6,6 +6,8 @@ import ConstellationGame from './ConstellationGame';
 import BubblePopperGame from './BubblePopperGame';
 import FallingStarsGame from './FallingStarsGame';
 import TargetPracticeGame from './TargetPracticeGame';
+import { DEFAULT_ATTENDANCE } from './data/defaultStudents';
+import { parseClassSection, isIgnoredSheet } from './utils/excelParser';
 
 export default function AttendanceSystem({ students, onBack }) {
   // Navigation State
@@ -17,9 +19,12 @@ export default function AttendanceSystem({ students, onBack }) {
   const [attendanceData, setAttendanceData] = useState(() => {
     const saved = localStorage.getItem('attendanceDataCache');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { return {}; }
+      try { 
+        const parsed = JSON.parse(saved);
+        if (parsed && Object.keys(parsed).length > 0) return parsed;
+      } catch (e) { return {}; }
     }
-    return {};
+    return DEFAULT_ATTENDANCE || {};
   });
   
   useEffect(() => {
@@ -35,7 +40,9 @@ export default function AttendanceSystem({ students, onBack }) {
   const [enableExportFilter, setEnableExportFilter] = useState(false);
 
   const activeStudents = students.filter(s => s.Name && s.Class);
-  const classSections = [...new Set(activeStudents.map(s => `${s.Class} ${s.Section || ''}`.trim()))].sort();
+  // Natural sorting: 5th A, 5th B, ..., 10th F
+  const classSections = [...new Set(activeStudents.map(s => `${s.Class} ${s.Section || ''}`.trim()))]
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
   
   const [selectedClasses, setSelectedClasses] = useState(classSections[0] ? [classSections[0]] : []);
   const [mergeMode, setMergeMode] = useState(false);
@@ -62,38 +69,58 @@ export default function AttendanceSystem({ students, onBack }) {
       const newAttendanceData = { ...attendanceData };
 
       wb.SheetNames.forEach(sheetName => {
+        if (isIgnoredSheet(sheetName)) return;
         const ws = wb.Sheets[sheetName];
         const data = XLSX.utils.sheet_to_json(ws);
-        
-        if (!newAttendanceData[sheetName]) {
-          newAttendanceData[sheetName] = {};
-        }
 
         data.forEach(row => {
           let studentName = null;
           let rollNo = null;
+          let studentClass = '';
+          let studentSec = '';
 
           Object.keys(row).forEach(key => {
             const lowerKey = key.toLowerCase().trim();
-            if (lowerKey === 'name' || lowerKey === 'student name' || lowerKey === 'studentname' || lowerKey === 'full name' || lowerKey === "student's name") {
+            if (['name', 'student name', 'studentname', 'full name', "student's name"].includes(lowerKey)) {
               studentName = row[key];
             }
-            if (lowerKey === 'rollno' || lowerKey === 'roll no' || lowerKey === 'roll') {
+            if (['rollno', 'roll no', 'roll', 's.no.', 's.no', 'sr no', 'sr.no'].includes(lowerKey)) {
               rollNo = row[key];
+            }
+            if (['class', 'std', 'standard', 'grade', 'class section'].includes(lowerKey)) {
+              studentClass = row[key];
+            }
+            if (['sec', 'section', 'batch'].includes(lowerKey)) {
+              studentSec = row[key];
             }
           });
 
           if (studentName) {
-            if (!newAttendanceData[sheetName][studentName]) {
-              newAttendanceData[sheetName][studentName] = {};
+            let targetClassKey = sheetName;
+            if (studentClass) {
+              const { cls, sec } = parseClassSection(studentClass, studentSec);
+              targetClassKey = `${cls} ${sec}`.trim();
+            } else {
+              const matchedStudent = activeStudents.find(s => s.Name?.toLowerCase().trim() === studentName.toString().toLowerCase().trim());
+              if (matchedStudent) {
+                targetClassKey = `${matchedStudent.Class} ${matchedStudent.Section || ''}`.trim();
+              }
             }
+
+            if (!newAttendanceData[targetClassKey]) {
+              newAttendanceData[targetClassKey] = {};
+            }
+            if (!newAttendanceData[targetClassKey][studentName]) {
+              newAttendanceData[targetClassKey][studentName] = {};
+            }
+
             Object.keys(row).forEach(key => {
               const lowerKey = key.toLowerCase().trim();
-              const isNameOrRoll = ['name', 'student name', 'studentname', 'full name', "student's name", 'rollno', 'roll no', 'roll', 'class', 'section', 'batch', 's.no.', 's.no', 'sr. no.', 'sr no'].includes(lowerKey);
+              const isNonDate = ['name', 'student name', 'studentname', 'full name', "student's name", 'rollno', 'roll no', 'roll', 'class', 'section', 'batch', 's.no.', 's.no', 'sr. no.', 'sr no', 'class section', 'notes', '_sheet'].includes(lowerKey);
               const isNumber = /^\d+$/.test(lowerKey) && lowerKey.length < 4;
               
-              if (!isNameOrRoll && !isNumber) {
-                newAttendanceData[sheetName][studentName][key] = row[key];
+              if (!isNonDate && !isNumber) {
+                newAttendanceData[targetClassKey][studentName][key] = row[key];
               }
             });
           }

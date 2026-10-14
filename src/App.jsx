@@ -1,26 +1,53 @@
 import React, { useState, useRef, useEffect } from 'react';
 import * as XLSX from 'xlsx';
-import { Search, Upload } from 'lucide-react';
+import { Search, Upload, RefreshCw, Star, Sparkles } from 'lucide-react';
 import { Canvas } from '@react-three/fiber';
 import { ScrollControls, Scroll } from '@react-three/drei';
 import { motion, AnimatePresence } from 'framer-motion';
 import ThreeScene from './ThreeBackground';
 import FeeModal from './FeeModal';
 import AttendanceSystem from './AttendanceSystem';
+import { DEFAULT_STUDENTS, DEFAULT_DATASET_NAME } from './data/defaultStudents';
+import { parseClassSection, guessExcelColumns, isIgnoredSheet } from './utils/excelParser';
 import './index.css';
 
 function App() {
   const [students, setStudents] = useState(() => {
+    // 1. If user previously saved a custom dataset as their default, prioritize it
+    const customDefault = localStorage.getItem('customDefaultStudents');
+    if (customDefault) {
+      try {
+        const parsed = JSON.parse(customDefault);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {}
+    }
+
+    // 2. Check active cached session
     const saved = localStorage.getItem('studentsCache');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { return []; }
+      try {
+        const parsed = JSON.parse(saved);
+        // If it was the old 6 dummy students, auto-upgrade to real middle school dataset!
+        const isOldDummy = Array.isArray(parsed) && parsed.length <= 6 && parsed.some(s => s.Name === 'John Doe');
+        if (!isOldDummy && Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      } catch (e) {}
     }
-    return [];
+
+    // 3. Fallback to official built-in default dataset (1,141 middle school students)
+    return DEFAULT_STUDENTS;
+  });
+
+  const [notification, setNotification] = useState(null);
+  const [datasetLabel, setDatasetLabel] = useState(() => {
+    return localStorage.getItem('datasetCustomLabel') || '';
   });
 
   useEffect(() => {
     localStorage.setItem('studentsCache', JSON.stringify(students));
   }, [students]);
+
   const [activeCategory, setActiveCategory] = useState('All');
   const [activeClass, setActiveClass] = useState('All');
   const [activeSection, setActiveSection] = useState('All');
@@ -38,6 +65,37 @@ function App() {
     setCurrentPage(1);
   }, [activeCategory, activeClass, activeSection, searchQuery, showDefaulters]);
 
+  const isCustomDefaultSaved = Boolean(localStorage.getItem('customDefaultStudents'));
+  const isUsingOfficialDefault = !isCustomDefaultSaved && (students === DEFAULT_STUDENTS || students.length === DEFAULT_STUDENTS.length);
+
+  const setAsMyDefault = () => {
+    localStorage.setItem('customDefaultStudents', JSON.stringify(students));
+    const label = `My Default (${students.length} Students)`;
+    localStorage.setItem('datasetCustomLabel', label);
+    setDatasetLabel(label);
+    setNotification({
+      message: `Current dataset (${students.length} students) is now saved as your personal default!`,
+      type: 'success'
+    });
+    setTimeout(() => setNotification(null), 3500);
+  };
+
+  const restoreOfficialDefault = () => {
+    localStorage.removeItem('customDefaultStudents');
+    localStorage.removeItem('datasetCustomLabel');
+    localStorage.setItem('studentsCache', JSON.stringify(DEFAULT_STUDENTS));
+    setStudents(DEFAULT_STUDENTS);
+    setDatasetLabel('');
+    setActiveCategory('All');
+    setActiveClass('All');
+    setActiveSection('All');
+    setNotification({
+      message: `Restored official default: ${DEFAULT_DATASET_NAME} (1,141 students)!`,
+      type: 'info'
+    });
+    setTimeout(() => setNotification(null), 3500);
+  };
+
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -49,14 +107,21 @@ function App() {
       const allHeaders = new Set();
       const rawData = [];
 
-      // Intelligent sheet selection
-      let sheetsToProcess = [];
-      const hasAllStudents = wb.SheetNames.some(s => s.toLowerCase().includes('all student'));
-      if (hasAllStudents) {
-        sheetsToProcess = wb.SheetNames.filter(s => s.toLowerCase().includes('all student'));
-      } else {
-        // Exclude common non-data sheets
-        sheetsToProcess = wb.SheetNames.filter(s => !['dashboard', 'summary', 'totals', 'raw entries', 'classwise summary', 'class totals'].includes(s.toLowerCase()));
+      // Exclude summaries, visuals, book lists, and dashboard sheets
+      const validSheets = wb.SheetNames.filter(s => !isIgnoredSheet(s));
+
+      // If workbook has Master List or All sheet, prefer it
+      const masterSheet = wb.SheetNames.find(s => {
+        const l = s.toLowerCase();
+        return l === 'master list' || l.includes('all student') || l === 'all';
+      });
+
+      let sheetsToProcess = validSheets;
+      if (masterSheet && (validSheets.length === 0 || validSheets.includes(masterSheet))) {
+        sheetsToProcess = [masterSheet];
+      }
+      if (sheetsToProcess.length === 0) {
+        sheetsToProcess = [wb.SheetNames[0]];
       }
 
       sheetsToProcess.forEach(sheetName => {
@@ -70,19 +135,10 @@ function App() {
       });
 
       const headers = Array.from(allHeaders);
-      
-      // Auto-guess columns (The "Intelligent" Part)
-      let bestName = '', bestClass = '', bestSec = '', bestId = '';
-      headers.forEach(h => {
-        const l = h.toLowerCase().trim();
-        if (['name', 'student name', 'fullname', 'student\'s name', 'studentname'].includes(l)) bestName = h;
-        if (['class', 'std', 'standard', 'grade'].includes(l)) bestClass = h;
-        if (['sec', 'section', 'batch'].includes(l)) bestSec = h;
-        if (['roll', 'roll no', 'rollno', 'fee book', 'fee book no', 'id', 'admission no'].includes(l)) bestId = h;
-      });
+      const guessed = guessExcelColumns(headers);
 
-      setColumnMap({ name: bestName, class: bestClass, section: bestSec, identifier: bestId });
-      setPreviewData({ headers, rawData });
+      setColumnMap(guessed);
+      setPreviewData({ headers, rawData, fileName: file.name });
     };
     reader.readAsBinaryString(file);
     e.target.value = null;
@@ -93,12 +149,20 @@ function App() {
     const feeConfig = JSON.parse(localStorage.getItem('feeConfig') || '{"count":3,"amount":500}');
 
     const finalData = previewData.rawData.map(row => {
-      const studentObj = { ...row, sheetCategory: row._sheet };
-      studentObj.Name = row[columnMap.name] || 'Unknown';
-      studentObj.Class = columnMap.class ? row[columnMap.class] : row._sheet;
-      studentObj.Section = columnMap.section ? row[columnMap.section] : '';
+      const studentObj = { ...row, sheetCategory: row._sheet || 'General' };
+      studentObj.Name = (row[columnMap.name] || 'Unknown').toString().trim();
+      
+      const rawClass = columnMap.class ? row[columnMap.class] : (row['Class Section'] || row['Class'] || row._sheet);
+      const rawSec = columnMap.section ? row[columnMap.section] : (row['Section'] || row['Sec'] || '');
+      
+      // Intelligently separate Class & Section (e.g. '8 D' -> Class: '8th', Section: 'D')
+      const { cls, sec } = parseClassSection(rawClass, rawSec);
+      studentObj.Class = cls;
+      studentObj.Section = sec;
+
       studentObj.IdentifierField = columnMap.identifier || 'RollNo';
-      studentObj.IdentifierValue = columnMap.identifier ? row[columnMap.identifier] : (row['RollNo'] || row['Roll No'] || '');
+      studentObj.IdentifierValue = columnMap.identifier ? row[columnMap.identifier] : (row['RollNo'] || row['Roll No'] || row['S.No.'] || row['BOOK No.'] || '');
+      studentObj.RollNo = studentObj.IdentifierValue;
 
       // Auto-sync fees
       const installments = Array(feeConfig.count).fill(false);
@@ -107,7 +171,7 @@ function App() {
         if (k.includes('INSTALL') && !k.match(/^INSTALLMENT$/i)) {
           const match = k.match(/(\d+)/);
           if (match) {
-            const index = parseInt(match[1]) - 1;
+            const index = parseInt(match[1], 10) - 1;
             if (index >= 0 && index < feeConfig.count) {
               const val = row[key];
               if (val > 0 || (typeof val === 'string' && val.toLowerCase() === 'paid')) {
@@ -123,21 +187,20 @@ function App() {
     });
 
     setStudents(finalData);
+    const label = previewData.fileName ? `${previewData.fileName} (${finalData.length} Students)` : `Uploaded (${finalData.length} Students)`;
+    setDatasetLabel(label);
     setActiveCategory('All');
     setActiveClass('All');
     setActiveSection('All');
     setPreviewData(null);
+    setNotification({
+      message: `Imported ${finalData.length} students! Click "Make My Default" above to save as your default.`,
+      type: 'info'
+    });
+    setTimeout(() => setNotification(null), 4500);
   };
 
-
-  const displayStudents = students.length > 0 ? students : [
-    { Name: 'John Doe', Class: '10th', Section: 'A', RollNo: '101', sheetCategory: 'Middle' },
-    { Name: 'Jane Smith', Class: 'UKG', Section: 'B', RollNo: '22', sheetCategory: 'UKG' },
-    { Name: 'Sam Wilson', Class: '5th', Section: 'C', RollNo: '45', sheetCategory: 'Primary' },
-    { Name: 'Alice Brown', Class: '8th', Section: 'A', RollNo: '12', sheetCategory: 'Middle' },
-    { Name: 'Emma Watson', Class: '10th', Section: 'B', RollNo: '105', sheetCategory: 'Middle' },
-    { Name: 'David Clark', Class: '4th', Section: 'A', RollNo: '33', sheetCategory: 'Primary' }
-  ];
+  const displayStudents = students.length > 0 ? students : DEFAULT_STUDENTS;
 
   const categories = ['All', ...new Set(displayStudents.map(s => s.sheetCategory).filter(Boolean))];
 
@@ -154,7 +217,7 @@ function App() {
         (activeCategory === 'All' || s.sheetCategory === activeCategory) &&
         (activeClass === 'All' || s.Class?.toString()?.trim() === activeClass)
       )
-      .map(s => s.Section)
+      .map(s => s.Section?.toString()?.trim())
       .filter(Boolean)
   )].sort();
 
@@ -173,7 +236,6 @@ function App() {
       const feeData = JSON.parse(feeDataRaw);
       hasUnpaidFees = feeData.includes(false);
     } else {
-      // If no fee data exists, they haven't paid anything
       hasUnpaidFees = true;
     }
     
@@ -197,13 +259,12 @@ function App() {
   });
 
   const ITEMS_PER_PAGE = 50;
-  const totalPages = Math.ceil(filteredStudents.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filteredStudents.length / ITEMS_PER_PAGE) || 1;
   const currentStudents = filteredStudents.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const exportToExcel = () => {
     if (filteredStudents.length === 0) return;
     
-    // Clean up internal fields before export so the excel looks nice
     const exportData = filteredStudents.map(s => {
       const { _sheet, sheetCategory, IdentifierField, IdentifierValue, ...cleanData } = s;
       return cleanData;
@@ -226,6 +287,21 @@ function App() {
 
   return (
     <>
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {notification && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: -20, x: '-50%' }}
+            className={`floating-toast ${notification.type}`}
+          >
+            <span>{notification.type === 'success' ? '✓' : 'ℹ️'}</span>
+            <span>{notification.message}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="canvas-wrapper">
         <Canvas camera={{ position: [0, 0, 8], fov: 45 }}>
           {/* 3D Scene reacting to scroll */}
@@ -246,9 +322,11 @@ function App() {
           >
             <div style={{ background: '#fff', padding: '2rem', borderRadius: '15px', width: '90%', maxWidth: '600px', boxShadow: '0 10px 30px rgba(0,0,0,0.3)' }}>
               <h2 style={{ fontFamily: 'Cormorant Garamond', fontSize: '2rem', marginTop: 0 }}>Map Your Columns</h2>
-              <p style={{ color: 'var(--text-light)' }}>We analyzed your Excel file. Please confirm the mapping below to ensure accuracy.</p>
+              <p style={{ color: 'var(--text-light)', marginBottom: '1rem' }}>
+                We analyzed <b>{previewData.fileName || 'your Excel sheet'}</b>. Combined columns like <i>"Class Section" (e.g. 8 D)</i> are automatically separated into Class and Section!
+              </p>
               
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '2rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1.5rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <label style={{ fontWeight: 'bold' }}>Student Name Column:</label>
                   <select value={columnMap.name} onChange={e => setColumnMap({...columnMap, name: e.target.value})} style={{ padding: '0.5rem', width: '250px', borderRadius: '8px' }}>
@@ -266,12 +344,12 @@ function App() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <label style={{ fontWeight: 'bold' }}>Section Column:</label>
                   <select value={columnMap.section} onChange={e => setColumnMap({...columnMap, section: e.target.value})} style={{ padding: '0.5rem', width: '250px', borderRadius: '8px' }}>
-                    <option value="">Leave empty if none</option>
+                    <option value="">Leave empty if combined in Class</option>
                     {previewData.headers.map(h => <option key={h} value={h}>{h}</option>)}
                   </select>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ fontWeight: 'bold' }}>Identifier (Roll/Fee Book No):</label>
+                  <label style={{ fontWeight: 'bold' }}>Identifier (Roll/S.No./Fee Book):</label>
                   <select value={columnMap.identifier} onChange={e => setColumnMap({...columnMap, identifier: e.target.value})} style={{ padding: '0.5rem', width: '250px', borderRadius: '8px' }}>
                     <option value="">Leave empty if none</option>
                     {previewData.headers.map(h => <option key={h} value={h}>{h}</option>)}
@@ -316,18 +394,68 @@ function App() {
         </section>
 
         <section className="interactive-section">
-          {students.length === 0 && (
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.8 }}
-              className="upload-area" 
-              onClick={() => fileInputRef.current.click()}
-            >
-              <Upload size={48} color="var(--text-accent)" style={{ margin: '0 auto' }} />
-              <p>Upload 'all student.xl' File</p>
-            </motion.div>
-          )}
+          {/* Dataset Management Ribbon */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="dataset-banner"
+          >
+            <div className="dataset-info-box">
+              <div className="dataset-icon-circle">🏫</div>
+              <div>
+                <div className="dataset-title-row">
+                  <span className="dataset-title-text">
+                    {datasetLabel || (isUsingOfficialDefault ? DEFAULT_DATASET_NAME : 'Active Student Directory')}
+                  </span>
+                  <span className={`dataset-badge ${isCustomDefaultSaved ? 'custom-default' : (isUsingOfficialDefault ? 'official' : 'temporary')}`}>
+                    {isCustomDefaultSaved ? '⭐ My Saved Default' : (isUsingOfficialDefault ? '✓ Official Default' : 'Session Dataset')}
+                  </span>
+                </div>
+                <div className="dataset-meta-text">
+                  {displayStudents.length} Students Total • Classes {availableClasses.filter(c => c !== 'All').join(', ')}
+                </div>
+              </div>
+            </div>
+
+            <div className="dataset-actions-group">
+              {!isCustomDefaultSaved ? (
+                <button 
+                  onClick={setAsMyDefault} 
+                  className="dataset-btn make-default" 
+                  title="Make this dataset your personal default whenever you open this site"
+                >
+                  ⭐ Make My Default
+                </button>
+              ) : (
+                <button 
+                  onClick={setAsMyDefault} 
+                  className="dataset-btn make-default" 
+                  title="Update and save current changes as your personal default"
+                >
+                  ⭐ Update Default
+                </button>
+              )}
+              
+              {(isCustomDefaultSaved || !isUsingOfficialDefault) && (
+                <button 
+                  onClick={restoreOfficialDefault} 
+                  className="dataset-btn restore" 
+                  title="Restore official St. Gabriel Middle School default dataset (1,141 students)"
+                >
+                  <RefreshCw size={14} /> Restore School Default
+                </button>
+              )}
+
+              <button 
+                onClick={() => fileInputRef.current?.click()} 
+                className="dataset-btn upload"
+                title="Upload another Excel file"
+              >
+                <Upload size={14} /> Upload Custom Excel
+              </button>
+            </div>
+          </motion.div>
 
           <input 
             type="file" 
@@ -343,60 +471,52 @@ function App() {
             transition={{ duration: 0.8 }}
             className="controls-wrapper"
           >
-            <div style={{ display: 'flex', gap: '1rem', width: '100%', maxWidth: '600px', margin: '0 auto', marginBottom: '1.5rem', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '1rem', width: '100%', maxWidth: '650px', margin: '0 auto', marginBottom: '1.5rem', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
               <input 
                 type="text" 
                 className="search-input" 
-                placeholder="Search students..." 
+                placeholder="Search students, roll no, or classes..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                style={{ flex: 1, margin: 0 }}
+                style={{ flex: 1, minWidth: '220px', margin: 0 }}
               />
               <button 
                 onClick={() => setShowDefaulters(!showDefaulters)}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: showDefaulters ? '#d32f2f' : '#fff', color: showDefaulters ? '#fff' : '#d32f2f', border: '1px solid #d32f2f', padding: '0.8rem 1.5rem', borderRadius: '30px', cursor: 'pointer', fontFamily: 'Cormorant Garamond', fontSize: '1rem', whiteSpace: 'nowrap', transition: 'all 0.3s' }}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: showDefaulters ? '#d32f2f' : '#fff', color: showDefaulters ? '#fff' : '#d32f2f', border: '1px solid #d32f2f', padding: '0.7rem 1.3rem', borderRadius: '30px', cursor: 'pointer', fontFamily: 'Cormorant Garamond', fontSize: '1rem', whiteSpace: 'nowrap', transition: 'all 0.3s' }}
               >
                 {showDefaulters ? 'Viewing Defaulters' : 'Show Defaulters'}
               </button>
               <button 
                 onClick={exportToExcel}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#4caf50', color: '#fff', border: 'none', padding: '0.8rem 1.5rem', borderRadius: '30px', cursor: 'pointer', fontFamily: 'Cormorant Garamond', fontSize: '1rem', whiteSpace: 'nowrap', transition: 'all 0.3s' }}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#4caf50', color: '#fff', border: 'none', padding: '0.7rem 1.3rem', borderRadius: '30px', cursor: 'pointer', fontFamily: 'Cormorant Garamond', fontSize: '1rem', whiteSpace: 'nowrap', transition: 'all 0.3s' }}
               >
                 Export Excel
               </button>
-              {students.length > 0 && (
-                <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--text-accent)', color: '#fff', border: 'none', padding: '0.8rem 1.5rem', borderRadius: '30px', cursor: 'pointer', fontFamily: 'Cormorant Garamond', fontSize: '1rem', whiteSpace: 'nowrap', boxShadow: '0 4px 15px rgba(153, 127, 99, 0.3)', transition: 'transform 0.2s' }}
-                  onMouseOver={e => e.currentTarget.style.transform='scale(1.05)'}
-                  onMouseOut={e => e.currentTarget.style.transform='scale(1)'}
-                >
-                  <Upload size={18} /> Change File
-                </button>
-              )}
             </div>
 
-            {/* Top Level: Categories */}
-            <div className="tabs">
-              {categories.map(cat => (
-                <button 
-                  key={cat}
-                  className={`tab-btn ${activeCategory === cat ? 'active' : ''}`}
-                  onClick={() => {
-                    setActiveCategory(cat);
-                    setActiveClass('All');
-                    setActiveSection('All');
-                  }}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
+            {/* Top Level: Categories (Only shown if multiple sheet categories exist) */}
+            {categories.length > 2 && (
+              <div className="tabs">
+                {categories.map(cat => (
+                  <button 
+                    key={cat}
+                    className={`tab-btn ${activeCategory === cat ? 'active' : ''}`}
+                    onClick={() => {
+                      setActiveCategory(cat);
+                      setActiveClass('All');
+                      setActiveSection('All');
+                    }}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            )}
 
-            {/* Second Level: Classes (Only show if a category is selected and has classes) */}
-            {activeCategory !== 'All' && availableClasses.length > 1 && (
-              <div className="tabs" style={{ marginTop: '1rem', gap: '1rem', opacity: 0.9 }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-accent)', textTransform: 'uppercase', letterSpacing: '0.1em', alignSelf: 'center', fontStyle: 'italic' }}>Class:</span>
+            {/* Second Level: Classes (Clean, naturally sorted 5th, 6th, 7th, 8th, 9th, 10th) */}
+            {availableClasses.length > 1 && (
+              <div className="tabs" style={{ marginTop: '0.5rem', gap: '0.8rem', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-accent)', textTransform: 'uppercase', letterSpacing: '0.1em', alignSelf: 'center', fontStyle: 'italic', fontWeight: 600 }}>Class:</span>
                 {availableClasses.map(cls => (
                   <button 
                     key={cls}
@@ -405,7 +525,7 @@ function App() {
                       setActiveClass(cls);
                       setActiveSection('All');
                     }}
-                    style={{ fontSize: '0.8rem', paddingBottom: '0.2rem' }}
+                    style={{ fontSize: '0.9rem', padding: '0.3rem 0.9rem' }}
                   >
                     {cls}
                   </button>
@@ -413,12 +533,29 @@ function App() {
               </div>
             )}
             
-            {activeClass !== 'All' && availableSections.length > 1 && (
+            {/* Third Level: Sections (A, B, C, D, E, F, G) */}
+            {availableSections.length > 1 && (
+              <div className="tabs" style={{ marginTop: '0.5rem', gap: '0.6rem', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-accent)', textTransform: 'uppercase', letterSpacing: '0.1em', alignSelf: 'center', fontStyle: 'italic', fontWeight: 600 }}>Section:</span>
+                {availableSections.map(sec => (
+                  <button 
+                    key={sec}
+                    className={`tab-btn ${activeSection === sec ? 'active' : ''}`}
+                    onClick={() => setActiveSection(sec)}
+                    style={{ fontSize: '0.85rem', padding: '0.25rem 0.8rem' }}
+                  >
+                    {sec}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {availableSections.length > 1 && (
               <motion.div 
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-accent)', letterSpacing: '0.2em', textTransform: 'uppercase' }}>
-                <span style={{ padding: '0.5rem 1rem', border: '1px solid var(--border-color)', borderRadius: '20px', background: 'rgba(255,255,255,0.5)' }}>
-                  Click a 3D bubble to filter by section
+                style={{ marginTop: '1rem', textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-accent)', letterSpacing: '0.15em', textTransform: 'uppercase' }}>
+                <span style={{ padding: '0.4rem 0.9rem', border: '1px solid var(--border-color)', borderRadius: '20px', background: 'rgba(255,255,255,0.6)' }}>
+                  ✨ You can also click any 3D floating orb to filter by section
                 </span>
               </motion.div>
             )}
