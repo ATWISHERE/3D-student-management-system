@@ -1,19 +1,30 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
 import * as XLSX from 'xlsx';
-import { Search, Upload } from 'lucide-react';
+import { Upload, RefreshCw } from 'lucide-react';
 import { Canvas } from '@react-three/fiber';
-import { ScrollControls, Scroll } from '@react-three/drei';
 import { motion, AnimatePresence } from 'framer-motion';
 import ThreeScene from './ThreeBackground';
 import FeeModal from './FeeModal';
 import AttendanceSystem from './AttendanceSystem';
+import { 
+  parseClassSection, 
+  normalizeDate, 
+  isSummaryOrInvalidRow, 
+  guessExcelColumns, 
+  filterSheetsForImport 
+} from './utils/excelParser';
 import './index.css';
 
 function App() {
   const [students, setStudents] = useState(() => {
     const saved = localStorage.getItem('studentsCache');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { return []; }
+      try { 
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) { 
+        return []; 
+      }
     }
     return [];
   });
@@ -21,22 +32,31 @@ function App() {
   useEffect(() => {
     localStorage.setItem('studentsCache', JSON.stringify(students));
   }, [students]);
+
   const [activeCategory, setActiveCategory] = useState('All');
   const [activeClass, setActiveClass] = useState('All');
   const [activeSection, setActiveSection] = useState('All');
+  const [activeBatch, setActiveBatch] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStudent, setSelectedStudent] = useState(null);
-  const [activePage, setActivePage] = useState('directory'); // Router State
-  const [previewData, setPreviewData] = useState(null); // Intelligent Excel Parsing mapping state
-  const [columnMap, setColumnMap] = useState({ name: '', class: '', section: '', identifier: '' });
+  const [activePage, setActivePage] = useState('directory'); // 'directory' or 'attendance'
+  const [previewData, setPreviewData] = useState(null);
+  const [columnMap, setColumnMap] = useState({ name: '', class: '', section: '', identifier: '', batch: '' });
   const [showDefaulters, setShowDefaulters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [notification, setNotification] = useState(null);
   const fileInputRef = useRef(null);
+
+  // Auto-dismiss toast
+  const showToast = (message, type = 'info') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 4000);
+  };
 
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeCategory, activeClass, activeSection, searchQuery, showDefaulters]);
+  }, [activeCategory, activeClass, activeSection, activeBatch, searchQuery, showDefaulters]);
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -44,45 +64,45 @@ function App() {
 
     const reader = new FileReader();
     reader.onload = (evt) => {
-      const bstr = evt.target.result;
-      const wb = XLSX.read(bstr, { type: 'binary' });
-      const allHeaders = new Set();
-      const rawData = [];
+      try {
+        const bstr = evt.target.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const allHeaders = new Set();
+        const rawData = [];
 
-      // Intelligent sheet selection
-      let sheetsToProcess = [];
-      const hasAllStudents = wb.SheetNames.some(s => s.toLowerCase().includes('all student'));
-      if (hasAllStudents) {
-        sheetsToProcess = wb.SheetNames.filter(s => s.toLowerCase().includes('all student'));
-      } else {
-        // Exclude common non-data sheets
-        sheetsToProcess = wb.SheetNames.filter(s => !['dashboard', 'summary', 'totals', 'raw entries', 'classwise summary', 'class totals'].includes(s.toLowerCase()));
+        // Universal deduplicating sheet selection
+        const sheetsToProcess = filterSheetsForImport(wb.SheetNames);
+
+        sheetsToProcess.forEach(sheetName => {
+          const ws = wb.Sheets[sheetName];
+          const data = XLSX.utils.sheet_to_json(ws);
+          
+          if (data.length > 0) {
+            data.forEach(row => {
+              if (!isSummaryOrInvalidRow(row)) {
+                Object.keys(row).forEach(k => allHeaders.add(k));
+                rawData.push({ ...row, _sheet: sheetName });
+              }
+            });
+          }
+        });
+
+        const headers = Array.from(allHeaders);
+        const guessed = guessExcelColumns(headers);
+
+        setColumnMap({ 
+          name: guessed.name, 
+          class: guessed.class, 
+          section: guessed.section, 
+          identifier: guessed.identifier,
+          batch: guessed.batch 
+        });
+
+        setPreviewData({ headers, rawData, fileName: file.name, totalSheets: wb.SheetNames.length });
+      } catch (err) {
+        console.error(err);
+        showToast('Error reading Excel file. Please ensure it is a valid .xlsx or .xls file.', 'error');
       }
-
-      sheetsToProcess.forEach(sheetName => {
-        const ws = wb.Sheets[sheetName];
-        const data = XLSX.utils.sheet_to_json(ws);
-        
-        if (data.length > 0) {
-          Object.keys(data[0]).forEach(k => allHeaders.add(k));
-          data.forEach(row => rawData.push({ ...row, _sheet: sheetName }));
-        }
-      });
-
-      const headers = Array.from(allHeaders);
-      
-      // Auto-guess columns (The "Intelligent" Part)
-      let bestName = '', bestClass = '', bestSec = '', bestId = '';
-      headers.forEach(h => {
-        const l = h.toLowerCase().trim();
-        if (['name', 'student name', 'fullname', 'student\'s name', 'studentname'].includes(l)) bestName = h;
-        if (['class', 'std', 'standard', 'grade'].includes(l)) bestClass = h;
-        if (['sec', 'section', 'batch'].includes(l)) bestSec = h;
-        if (['roll', 'roll no', 'rollno', 'fee book', 'fee book no', 'id', 'admission no'].includes(l)) bestId = h;
-      });
-
-      setColumnMap({ name: bestName, class: bestClass, section: bestSec, identifier: bestId });
-      setPreviewData({ headers, rawData });
     };
     reader.readAsBinaryString(file);
     e.target.value = null;
@@ -91,52 +111,133 @@ function App() {
   const confirmMapping = () => {
     if (!previewData) return;
     const feeConfig = JSON.parse(localStorage.getItem('feeConfig') || '{"count":3,"amount":500}');
+    const attendanceCache = JSON.parse(localStorage.getItem('attendanceDataCache') || '{}');
+    let attendanceSynced = 0;
 
-    const finalData = previewData.rawData.map(row => {
-      const studentObj = { ...row, sheetCategory: row._sheet };
-      studentObj.Name = row[columnMap.name] || 'Unknown';
-      studentObj.Class = columnMap.class ? row[columnMap.class] : row._sheet;
-      studentObj.Section = columnMap.section ? row[columnMap.section] : '';
-      studentObj.IdentifierField = columnMap.identifier || 'RollNo';
-      studentObj.IdentifierValue = columnMap.identifier ? row[columnMap.identifier] : (row['RollNo'] || row['Roll No'] || '');
+    // Use a Map for universal deduplication: key = lower(name) + '_' + lower(class)
+    const studentMap = new Map();
 
-      // Auto-sync fees
-      const installments = Array(feeConfig.count).fill(false);
-      Object.keys(row).forEach(key => {
-        const k = key.toUpperCase();
-        if (k.includes('INSTALL') && !k.match(/^INSTALLMENT$/i)) {
-          const match = k.match(/(\d+)/);
-          if (match) {
-            const index = parseInt(match[1]) - 1;
-            if (index >= 0 && index < feeConfig.count) {
-              const val = row[key];
-              if (val > 0 || (typeof val === 'string' && val.toLowerCase() === 'paid')) {
-                installments[index] = true;
+    previewData.rawData
+      .filter(row => !isSummaryOrInvalidRow(row, columnMap.name))
+      .forEach(row => {
+        const name = (row[columnMap.name] || row['Student Name'] || row['Name'] || '').toString().trim();
+        if (!name) return;
+
+        const rawClass = columnMap.class ? row[columnMap.class] : (row['Class Section'] || row['Class'] || row._sheet);
+        const rawSec = columnMap.section ? row[columnMap.section] : (row['Section'] || row['Sec'] || '');
+        const { cls, sec } = parseClassSection(rawClass, rawSec);
+
+        const idField = columnMap.identifier || 'RollNo';
+        const idVal = columnMap.identifier ? row[columnMap.identifier] : (row['RollNo'] || row['Roll No'] || row['BOOK No.'] || row['S.No.'] || '');
+
+        let batchVal = columnMap.batch ? row[columnMap.batch] : (row['Batch'] || row['batch'] || '');
+        if (!batchVal && row._sheet && row._sheet.toLowerCase().includes('batch')) {
+          const m = row._sheet.match(/(\d+)/);
+          if (m) batchVal = m[1];
+        }
+
+        const dedupKey = `${name.toLowerCase()}_${cls.toLowerCase()}`;
+
+        if (!studentMap.has(dedupKey)) {
+          const studentObj = { 
+            ...row, 
+            sheetCategory: row._sheet || 'General',
+            Name: name,
+            Class: cls,
+            Section: sec,
+            Batch: batchVal ? String(batchVal) : '',
+            IdentifierField: idField,
+            IdentifierValue: idVal,
+            RollNo: idVal
+          };
+
+          // Auto-sync fees
+          const installments = Array(feeConfig.count).fill(false);
+          Object.keys(row).forEach(key => {
+            const k = key.toUpperCase();
+            if (k.includes('INSTALL') && !k.match(/^INSTALLMENT$/i)) {
+              const match = k.match(/(\d+)/);
+              if (match) {
+                const index = parseInt(match[1], 10) - 1;
+                if (index >= 0 && index < feeConfig.count) {
+                  const val = row[key];
+                  if (val > 0 || (typeof val === 'string' && val.toLowerCase() === 'paid')) {
+                    installments[index] = true;
+                  }
+                }
               }
             }
+          });
+          try {
+            localStorage.setItem(`fee_${name}`, JSON.stringify(installments));
+          } catch (e) {}
+
+          studentMap.set(dedupKey, studentObj);
+        } else {
+          // Merge missing properties
+          const existing = studentMap.get(dedupKey);
+          if (!existing.Batch && batchVal) existing.Batch = String(batchVal);
+          if (!existing.Section && sec) existing.Section = sec;
+          if (!existing.RollNo && idVal) {
+            existing.RollNo = idVal;
+            existing.IdentifierValue = idVal;
           }
         }
+
+        // Auto-sync attendance dates from any Excel column matching normalizeDate
+        const classKey = `${cls} ${sec}`.trim();
+        if (classKey && name) {
+          Object.keys(row).forEach(key => {
+            const normDate = normalizeDate(key);
+            if (normDate) {
+              const val = (row[key] || '').toString().trim().toUpperCase();
+              if (val === 'P' || val === 'A') {
+                if (!attendanceCache[classKey]) attendanceCache[classKey] = {};
+                if (!attendanceCache[classKey][name]) attendanceCache[classKey][name] = {};
+                attendanceCache[classKey][name][normDate] = val;
+                attendanceSynced++;
+              }
+            }
+          });
+        }
       });
-      localStorage.setItem(`fee_${studentObj.Name}`, JSON.stringify(installments));
 
-      return studentObj;
-    });
+    if (attendanceSynced > 0) {
+      try {
+        localStorage.setItem('attendanceDataCache', JSON.stringify(attendanceCache));
+      } catch (e) {}
+    }
 
+    const finalData = Array.from(studentMap.values());
     setStudents(finalData);
     setActiveCategory('All');
     setActiveClass('All');
     setActiveSection('All');
+    setActiveBatch('All');
     setPreviewData(null);
+    showToast(`Successfully imported ${finalData.length} students${attendanceSynced > 0 ? ` and synchronized ${attendanceSynced} attendance records` : ''}!`, 'success');
   };
 
+  const handleClearCache = () => {
+    if (window.confirm("Are you sure you want to clear loaded student data and cache?")) {
+      localStorage.removeItem('studentsCache');
+      localStorage.removeItem('attendanceDataCache');
+      setStudents([]);
+      setActiveCategory('All');
+      setActiveClass('All');
+      setActiveSection('All');
+      setActiveBatch('All');
+      showToast('Cache cleared. You can now upload a fresh file.', 'info');
+    }
+  };
 
   const displayStudents = students.length > 0 ? students : [
-    { Name: 'John Doe', Class: '10th', Section: 'A', RollNo: '101', sheetCategory: 'Middle' },
-    { Name: 'Jane Smith', Class: 'UKG', Section: 'B', RollNo: '22', sheetCategory: 'UKG' },
-    { Name: 'Sam Wilson', Class: '5th', Section: 'C', RollNo: '45', sheetCategory: 'Primary' },
-    { Name: 'Alice Brown', Class: '8th', Section: 'A', RollNo: '12', sheetCategory: 'Middle' },
-    { Name: 'Emma Watson', Class: '10th', Section: 'B', RollNo: '105', sheetCategory: 'Middle' },
-    { Name: 'David Clark', Class: '4th', Section: 'A', RollNo: '33', sheetCategory: 'Primary' }
+    { Name: 'John Doe', Class: '10th', Section: 'A', RollNo: '101', Batch: '1', sheetCategory: 'Middle' },
+    { Name: 'Jane Smith', Class: 'UKG', Section: 'B', RollNo: '22', Batch: '', sheetCategory: 'UKG' },
+    { Name: 'Sam Wilson', Class: '5th', Section: 'C', RollNo: '45', Batch: '', sheetCategory: 'Primary' },
+    { Name: 'Alice Brown', Class: '8th', Section: 'A', RollNo: '12', Batch: '', sheetCategory: 'Middle' },
+    { Name: 'Emma Watson', Class: '10th', Section: 'B', RollNo: '105', Batch: '2', sheetCategory: 'Middle' },
+    { Name: 'David Clark', Class: '4th', Section: 'A', RollNo: '33', Batch: '', sheetCategory: 'Primary' }
   ];
 
   const categories = ['All', ...new Set(displayStudents.map(s => s.sheetCategory).filter(Boolean))];
@@ -158,9 +259,19 @@ function App() {
       .filter(Boolean)
   )].sort();
 
+  const availableBatches = ['All', ...new Set(
+    displayStudents
+      .filter(s => 
+        (activeCategory === 'All' || s.sheetCategory === activeCategory) &&
+        (activeClass === 'All' || s.Class?.toString()?.trim() === activeClass) &&
+        (activeSection === 'All' || s.Section === activeSection)
+      )
+      .map(s => s.Batch?.toString()?.trim())
+      .filter(Boolean)
+  )].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
   const today = new Date().toISOString().split('T')[0];
   const attendanceCache = JSON.parse(localStorage.getItem('attendanceDataCache') || '{}');
-  const feeConfig = JSON.parse(localStorage.getItem('feeConfig') || '{"count":3,"amount":500}');
 
   const isDefaulter = (student) => {
     const targetClass = `${student.Class} ${student.Section || ''}`.trim();
@@ -170,10 +281,13 @@ function App() {
     const feeDataRaw = localStorage.getItem(`fee_${student.Name}`);
     let hasUnpaidFees = false;
     if (feeDataRaw) {
-      const feeData = JSON.parse(feeDataRaw);
-      hasUnpaidFees = feeData.includes(false);
+      try {
+        const feeData = JSON.parse(feeDataRaw);
+        hasUnpaidFees = Array.isArray(feeData) && feeData.includes(false);
+      } catch (e) {
+        hasUnpaidFees = false;
+      }
     } else {
-      // If no fee data exists, they haven't paid anything
       hasUnpaidFees = true;
     }
     
@@ -184,6 +298,7 @@ function App() {
     const matchesCategory = activeCategory === 'All' || student.sheetCategory === activeCategory;
     const matchesClass = activeClass === 'All' || student.Class?.toString()?.trim() === activeClass;
     const matchesSection = activeSection === 'All' || student.Section === activeSection;
+    const matchesBatch = activeBatch === 'All' || (student.Batch && student.Batch.toString() === activeBatch);
     const matchesDefaulter = showDefaulters ? isDefaulter(student) : true;
                       
     const searchLower = searchQuery.toLowerCase();
@@ -193,7 +308,7 @@ function App() {
       return value.toString().toLowerCase().includes(searchLower);
     });
 
-    return matchesCategory && matchesClass && matchesSection && matchesDefaulter && matchesSearch;
+    return matchesCategory && matchesClass && matchesSection && matchesBatch && matchesDefaulter && matchesSearch;
   });
 
   const ITEMS_PER_PAGE = 50;
@@ -203,7 +318,6 @@ function App() {
   const exportToExcel = () => {
     if (filteredStudents.length === 0) return;
     
-    // Clean up internal fields before export so the excel looks nice
     const exportData = filteredStudents.map(s => {
       const { _sheet, sheetCategory, IdentifierField, IdentifierValue, ...cleanData } = s;
       return cleanData;
@@ -213,6 +327,7 @@ function App() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Filtered_Students");
     XLSX.writeFile(wb, "Filtered_Students_List.xlsx");
+    showToast('Exported filtered students to Excel!', 'success');
   };
 
   if (activePage === 'attendance') {
@@ -226,62 +341,103 @@ function App() {
 
   return (
     <>
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {notification && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: -20, x: '-50%' }}
+            style={{
+              position: 'fixed',
+              top: '20px',
+              left: '50%',
+              zIndex: 99999,
+              background: notification.type === 'error' ? '#d32f2f' : notification.type === 'success' ? '#2e7d32' : '#997F63',
+              color: '#fff',
+              padding: '0.8rem 1.6rem',
+              borderRadius: '30px',
+              boxShadow: '0 8px 25px rgba(0,0,0,0.2)',
+              fontFamily: 'Montserrat, sans-serif',
+              fontSize: '0.9rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              pointerEvents: 'none'
+            }}
+          >
+            <span>{notification.type === 'success' ? '✓' : notification.type === 'error' ? '⚠️' : 'ℹ️'}</span>
+            <span>{notification.message}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="canvas-wrapper">
         <Canvas camera={{ position: [0, 0, 8], fov: 45 }}>
-          {/* 3D Scene reacting to scroll */}
-          <ThreeScene 
-            availableSections={availableSections} 
-            activeSection={activeSection} 
-            setActiveSection={setActiveSection} 
-          />
+          <Suspense fallback={null}>
+            <ThreeScene 
+              availableSections={availableSections} 
+              activeSection={activeSection} 
+              setActiveSection={setActiveSection} 
+            />
+          </Suspense>
         </Canvas>
       </div>
 
-      {/* Feature 1: Intelligent Excel Mapping Modal */}
+      {/* Feature: Intelligent Universal Excel Mapping Modal */}
       <AnimatePresence>
         {previewData && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center' }}
           >
-            <div style={{ background: '#fff', padding: '2rem', borderRadius: '15px', width: '90%', maxWidth: '600px', boxShadow: '0 10px 30px rgba(0,0,0,0.3)' }}>
-              <h2 style={{ fontFamily: 'Cormorant Garamond', fontSize: '2rem', marginTop: 0 }}>Map Your Columns</h2>
-              <p style={{ color: 'var(--text-light)' }}>We analyzed your Excel file. Please confirm the mapping below to ensure accuracy.</p>
+            <div style={{ background: '#fff', padding: '2.5rem', borderRadius: '18px', width: '92%', maxWidth: '620px', boxShadow: '0 15px 40px rgba(0,0,0,0.35)' }}>
+              <h2 style={{ fontFamily: 'Cormorant Garamond', fontSize: '2.2rem', marginTop: 0, color: 'var(--text-main)' }}>Confirm Column Mapping</h2>
+              <p style={{ color: 'var(--text-light)', fontSize: '0.95rem' }}>
+                We analyzed <b>{previewData.fileName}</b>. Verify the columns below to cleanly organize names, classes, and batches:
+              </p>
               
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '2rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', marginTop: '1.5rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ fontWeight: 'bold' }}>Student Name Column:</label>
-                  <select value={columnMap.name} onChange={e => setColumnMap({...columnMap, name: e.target.value})} style={{ padding: '0.5rem', width: '250px', borderRadius: '8px' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>Student Name Column:</label>
+                  <select value={columnMap.name} onChange={e => setColumnMap({...columnMap, name: e.target.value})} style={{ padding: '0.6rem', width: '260px', borderRadius: '8px', border: '1px solid #ccc' }}>
                     <option value="">-- Select --</option>
                     {previewData.headers.map(h => <option key={h} value={h}>{h}</option>)}
                   </select>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ fontWeight: 'bold' }}>Class Column:</label>
-                  <select value={columnMap.class} onChange={e => setColumnMap({...columnMap, class: e.target.value})} style={{ padding: '0.5rem', width: '250px', borderRadius: '8px' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>Class / Standard Column:</label>
+                  <select value={columnMap.class} onChange={e => setColumnMap({...columnMap, class: e.target.value})} style={{ padding: '0.6rem', width: '260px', borderRadius: '8px', border: '1px solid #ccc' }}>
                     <option value="">Use Sheet Name if empty</option>
                     {previewData.headers.map(h => <option key={h} value={h}>{h}</option>)}
                   </select>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ fontWeight: 'bold' }}>Section Column:</label>
-                  <select value={columnMap.section} onChange={e => setColumnMap({...columnMap, section: e.target.value})} style={{ padding: '0.5rem', width: '250px', borderRadius: '8px' }}>
-                    <option value="">Leave empty if none</option>
+                  <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>Section Column:</label>
+                  <select value={columnMap.section} onChange={e => setColumnMap({...columnMap, section: e.target.value})} style={{ padding: '0.6rem', width: '260px', borderRadius: '8px', border: '1px solid #ccc' }}>
+                    <option value="">Auto-extract from Class or leave empty</option>
                     {previewData.headers.map(h => <option key={h} value={h}>{h}</option>)}
                   </select>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ fontWeight: 'bold' }}>Identifier (Roll/Fee Book No):</label>
-                  <select value={columnMap.identifier} onChange={e => setColumnMap({...columnMap, identifier: e.target.value})} style={{ padding: '0.5rem', width: '250px', borderRadius: '8px' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>Batch Column (Optional):</label>
+                  <select value={columnMap.batch} onChange={e => setColumnMap({...columnMap, batch: e.target.value})} style={{ padding: '0.6rem', width: '260px', borderRadius: '8px', border: '1px solid #ccc' }}>
+                    <option value="">Auto-detect Batch (if present)</option>
+                    {previewData.headers.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>Identifier (Book No / Roll No):</label>
+                  <select value={columnMap.identifier} onChange={e => setColumnMap({...columnMap, identifier: e.target.value})} style={{ padding: '0.6rem', width: '260px', borderRadius: '8px', border: '1px solid #ccc' }}>
                     <option value="">Leave empty if none</option>
                     {previewData.headers.map(h => <option key={h} value={h}>{h}</option>)}
                   </select>
                 </div>
               </div>
 
-              <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-                <button onClick={() => setPreviewData(null)} style={{ padding: '0.5rem 1rem', background: '#eaeaea', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Cancel</button>
-                <button onClick={confirmMapping} style={{ padding: '0.5rem 1.5rem', background: 'var(--text-accent)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Confirm & Import</button>
+              <div style={{ marginTop: '2.5rem', display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                <button onClick={() => setPreviewData(null)} style={{ padding: '0.6rem 1.2rem', background: '#f0f0f0', border: 'none', borderRadius: '25px', cursor: 'pointer', fontFamily: 'Montserrat', fontWeight: 500 }}>Cancel</button>
+                <button onClick={confirmMapping} style={{ padding: '0.6rem 1.8rem', background: 'var(--text-accent)', color: '#fff', border: 'none', borderRadius: '25px', cursor: 'pointer', fontFamily: 'Montserrat', fontWeight: 500, boxShadow: '0 4px 15px rgba(153, 127, 99, 0.3)' }}>Confirm & Import</button>
               </div>
             </div>
           </motion.div>
@@ -323,9 +479,11 @@ function App() {
               transition={{ duration: 0.8 }}
               className="upload-area" 
               onClick={() => fileInputRef.current.click()}
+              style={{ cursor: 'pointer' }}
             >
-              <Upload size={48} color="var(--text-accent)" style={{ margin: '0 auto' }} />
-              <p>Upload 'all student.xl' File</p>
+              <Upload size={48} color="var(--text-accent)" style={{ margin: '0 auto 1rem' }} />
+              <p style={{ fontSize: '1.4rem', fontWeight: 400 }}>Upload Excel Student File</p>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-light)', marginTop: '0.5rem', display: 'block' }}>Supports .xlsx & .xls with automatic batch & section recognition</span>
             </motion.div>
           )}
 
@@ -343,60 +501,72 @@ function App() {
             transition={{ duration: 0.8 }}
             className="controls-wrapper"
           >
-            <div style={{ display: 'flex', gap: '1rem', width: '100%', maxWidth: '600px', margin: '0 auto', marginBottom: '1.5rem', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '1rem', width: '100%', maxWidth: '750px', margin: '0 auto', marginBottom: '1.5rem', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
               <input 
                 type="text" 
                 className="search-input" 
-                placeholder="Search students..." 
+                placeholder="Search students, roll no, or classes..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                style={{ flex: 1, margin: 0 }}
+                style={{ flex: 1, minWidth: '220px', margin: 0 }}
               />
               <button 
                 onClick={() => setShowDefaulters(!showDefaulters)}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: showDefaulters ? '#d32f2f' : '#fff', color: showDefaulters ? '#fff' : '#d32f2f', border: '1px solid #d32f2f', padding: '0.8rem 1.5rem', borderRadius: '30px', cursor: 'pointer', fontFamily: 'Cormorant Garamond', fontSize: '1rem', whiteSpace: 'nowrap', transition: 'all 0.3s' }}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: showDefaulters ? '#d32f2f' : '#fff', color: showDefaulters ? '#fff' : '#d32f2f', border: '1px solid #d32f2f', padding: '0.7rem 1.4rem', borderRadius: '30px', cursor: 'pointer', fontFamily: 'Cormorant Garamond', fontSize: '1.05rem', whiteSpace: 'nowrap', transition: 'all 0.3s' }}
               >
                 {showDefaulters ? 'Viewing Defaulters' : 'Show Defaulters'}
               </button>
               <button 
                 onClick={exportToExcel}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#4caf50', color: '#fff', border: 'none', padding: '0.8rem 1.5rem', borderRadius: '30px', cursor: 'pointer', fontFamily: 'Cormorant Garamond', fontSize: '1rem', whiteSpace: 'nowrap', transition: 'all 0.3s' }}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#4caf50', color: '#fff', border: 'none', padding: '0.7rem 1.4rem', borderRadius: '30px', cursor: 'pointer', fontFamily: 'Cormorant Garamond', fontSize: '1.05rem', whiteSpace: 'nowrap', transition: 'all 0.3s' }}
               >
                 Export Excel
               </button>
               {students.length > 0 && (
-                <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--text-accent)', color: '#fff', border: 'none', padding: '0.8rem 1.5rem', borderRadius: '30px', cursor: 'pointer', fontFamily: 'Cormorant Garamond', fontSize: '1rem', whiteSpace: 'nowrap', boxShadow: '0 4px 15px rgba(153, 127, 99, 0.3)', transition: 'transform 0.2s' }}
-                  onMouseOver={e => e.currentTarget.style.transform='scale(1.05)'}
-                  onMouseOut={e => e.currentTarget.style.transform='scale(1)'}
-                >
-                  <Upload size={18} /> Change File
-                </button>
+                <>
+                  <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--text-accent)', color: '#fff', border: 'none', padding: '0.7rem 1.4rem', borderRadius: '30px', cursor: 'pointer', fontFamily: 'Cormorant Garamond', fontSize: '1.05rem', whiteSpace: 'nowrap', boxShadow: '0 4px 15px rgba(153, 127, 99, 0.3)', transition: 'transform 0.2s' }}
+                    onMouseOver={e => e.currentTarget.style.transform='scale(1.04)'}
+                    onMouseOut={e => e.currentTarget.style.transform='scale(1)'}
+                  >
+                    <Upload size={16} /> Change File
+                  </button>
+                  <button 
+                    onClick={handleClearCache}
+                    title="Clear cached data"
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', background: 'transparent', color: 'var(--text-light)', border: '1px solid #ddd', padding: '0.7rem 1rem', borderRadius: '30px', cursor: 'pointer', fontSize: '0.85rem' }}
+                  >
+                    <RefreshCw size={14} /> Reset
+                  </button>
+                </>
               )}
             </div>
 
             {/* Top Level: Categories */}
-            <div className="tabs">
-              {categories.map(cat => (
-                <button 
-                  key={cat}
-                  className={`tab-btn ${activeCategory === cat ? 'active' : ''}`}
-                  onClick={() => {
-                    setActiveCategory(cat);
-                    setActiveClass('All');
-                    setActiveSection('All');
-                  }}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
+            {categories.length > 2 && (
+              <div className="tabs">
+                {categories.map(cat => (
+                  <button 
+                    key={cat}
+                    className={`tab-btn ${activeCategory === cat ? 'active' : ''}`}
+                    onClick={() => {
+                      setActiveCategory(cat);
+                      setActiveClass('All');
+                      setActiveSection('All');
+                      setActiveBatch('All');
+                    }}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            )}
 
-            {/* Second Level: Classes (Only show if a category is selected and has classes) */}
-            {activeCategory !== 'All' && availableClasses.length > 1 && (
-              <div className="tabs" style={{ marginTop: '1rem', gap: '1rem', opacity: 0.9 }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-accent)', textTransform: 'uppercase', letterSpacing: '0.1em', alignSelf: 'center', fontStyle: 'italic' }}>Class:</span>
+            {/* Second Level: Classes */}
+            {availableClasses.length > 1 && (
+              <div className="tabs" style={{ marginTop: '0.8rem', gap: '0.8rem', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-accent)', textTransform: 'uppercase', letterSpacing: '0.1em', alignSelf: 'center', fontStyle: 'italic', fontWeight: 600 }}>Class:</span>
                 {availableClasses.map(cls => (
                   <button 
                     key={cls}
@@ -404,8 +574,9 @@ function App() {
                     onClick={() => {
                       setActiveClass(cls);
                       setActiveSection('All');
+                      setActiveBatch('All');
                     }}
-                    style={{ fontSize: '0.8rem', paddingBottom: '0.2rem' }}
+                    style={{ fontSize: '0.9rem', padding: '0.3rem 0.9rem' }}
                   >
                     {cls}
                   </button>
@@ -413,12 +584,49 @@ function App() {
               </div>
             )}
             
-            {activeClass !== 'All' && availableSections.length > 1 && (
+            {/* Third Level: Sections */}
+            {availableSections.length > 1 && (
+              <div className="tabs" style={{ marginTop: '0.6rem', gap: '0.6rem', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-accent)', textTransform: 'uppercase', letterSpacing: '0.1em', alignSelf: 'center', fontStyle: 'italic', fontWeight: 600 }}>Section:</span>
+                {availableSections.map(sec => (
+                  <button 
+                    key={sec}
+                    className={`tab-btn ${activeSection === sec ? 'active' : ''}`}
+                    onClick={() => {
+                      setActiveSection(sec);
+                      setActiveBatch('All');
+                    }}
+                    style={{ fontSize: '0.85rem', padding: '0.25rem 0.8rem' }}
+                  >
+                    {sec}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Fourth Level: Batches (Only shown if students have Batch assignments) */}
+            {availableBatches.length > 1 && (
+              <div className="tabs" style={{ marginTop: '0.6rem', gap: '0.6rem', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-accent)', textTransform: 'uppercase', letterSpacing: '0.1em', alignSelf: 'center', fontStyle: 'italic', fontWeight: 600 }}>Batch:</span>
+                {availableBatches.map(b => (
+                  <button 
+                    key={b}
+                    className={`tab-btn ${activeBatch === b ? 'active' : ''}`}
+                    onClick={() => setActiveBatch(b)}
+                    style={{ fontSize: '0.85rem', padding: '0.25rem 0.8rem' }}
+                  >
+                    {b === 'All' ? 'All Batches' : `Batch ${b}`}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {availableSections.length > 1 && (
               <motion.div 
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-accent)', letterSpacing: '0.2em', textTransform: 'uppercase' }}>
-                <span style={{ padding: '0.5rem 1rem', border: '1px solid var(--border-color)', borderRadius: '20px', background: 'rgba(255,255,255,0.5)' }}>
-                  Click a 3D bubble to filter by section
+                style={{ marginTop: '1.2rem', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-accent)', letterSpacing: '0.15em', textTransform: 'uppercase' }}>
+                <span style={{ padding: '0.4rem 1rem', border: '1px solid var(--border-color)', borderRadius: '20px', background: 'rgba(255,255,255,0.6)' }}>
+                  ✨ You can also click floating 3D orbs to filter sections
                 </span>
               </motion.div>
             )}
@@ -435,22 +643,35 @@ function App() {
               >
                 <div className="photo-placeholder">
                   <span style={{ fontFamily: 'Cormorant Garamond', fontSize: '2rem', fontStyle: 'italic' }}>
-                    {student.Name ? student.Name.charAt(0) : '?'}
+                    {student.Name ? String(student.Name).charAt(0) : '?'}
                   </span>
                 </div>
                 <div className="student-info">
                   <h3>{student.Name || student.name || 'Unknown'}</h3>
-                  <div className="class-badge">
-                    {student.Class || student.class || student.sheetCategory} 
-                    {student.Section ? ` • Sec ${student.Section}` : ''}
+                  <div className="class-badge" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                    <span>
+                      {student.Class || student.class || student.sheetCategory} 
+                      {student.Section ? ` • Sec ${student.Section}` : ''}
+                    </span>
+                    {student.Batch && (
+                      <span style={{ 
+                        background: 'rgba(153, 127, 99, 0.15)', 
+                        color: 'var(--text-accent)', 
+                        padding: '0.15rem 0.6rem', 
+                        borderRadius: '12px', 
+                        fontSize: '0.75rem', 
+                        fontWeight: 600 
+                      }}>
+                        Batch {student.Batch}
+                      </span>
+                    )}
                   </div>
                   
                   <div className="student-details">
                     {Object.entries(student).map(([key, value]) => {
                       const kLower = key.toLowerCase();
-                      // Hide internal fields and unwanted raw columns
-                      if (['name', 'class', 'section', 'sheetcategory', '_sheet', 'identifierfield', 'identifiervalue'].includes(kLower)) return null;
-                      if (kLower.includes('install')) return null; // Hides '1 INSTALL', 'INSTALLMENT', etc.
+                      if (['name', 'class', 'section', 'batch', 'sheetcategory', '_sheet', 'identifierfield', 'identifiervalue'].includes(kLower)) return null;
+                      if (kLower.includes('install')) return null;
                       if (value === null || value === undefined || value === '') return null;
                       
                       return (
@@ -466,8 +687,8 @@ function App() {
             ))}
             
             {filteredStudents.length === 0 && (
-              <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3rem', color: 'var(--text-light)' }}>
-                <p style={{ fontFamily: 'Cormorant Garamond', fontSize: '1.5rem', fontStyle: 'italic' }}>No students found matching your criteria.</p>
+              <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '4rem 1rem', color: 'var(--text-light)' }}>
+                <p style={{ fontFamily: 'Cormorant Garamond', fontSize: '1.6rem', fontStyle: 'italic' }}>No students found matching your criteria.</p>
               </div>
             )}
           </div>
@@ -477,47 +698,63 @@ function App() {
               <button 
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                style={{ padding: '0.8rem 1.5rem', borderRadius: '30px', border: '1px solid var(--border-color)', background: '#fff', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1, fontFamily: 'Cormorant Garamond', fontSize: '1rem' }}
-              >Previous</button>
-              
-              <span style={{ fontFamily: 'Cormorant Garamond', fontSize: '1.2rem', fontStyle: 'italic', color: 'var(--text-light)' }}>
+                style={{ padding: '0.8rem 1.6rem', borderRadius: '30px', border: '1px solid var(--border-color)', background: '#fff', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1, fontFamily: 'Cormorant Garamond', fontSize: '1rem' }}
+              >
+                Previous
+              </button>
+              <span style={{ fontFamily: 'Cormorant Garamond', fontSize: '1.2rem', color: 'var(--text-accent)' }}>
                 Page {currentPage} of {totalPages}
               </span>
-              
               <button 
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                style={{ padding: '0.8rem 1.5rem', borderRadius: '30px', border: '1px solid var(--border-color)', background: '#fff', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', opacity: currentPage === totalPages ? 0.5 : 1, fontFamily: 'Cormorant Garamond', fontSize: '1rem' }}
-              >Next</button>
+                style={{ padding: '0.8rem 1.6rem', borderRadius: '30px', border: '1px solid var(--border-color)', background: '#fff', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', opacity: currentPage === totalPages ? 0.5 : 1, fontFamily: 'Cormorant Garamond', fontSize: '1rem' }}
+              >
+                Next
+              </button>
             </div>
           )}
         </section>
 
         <section className="footer-spacer" style={{ padding: '4rem 2rem', background: '#fcfbfa', borderTop: '1px solid rgba(0,0,0,0.05)', textAlign: 'center' }}>
           <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-            <h2 style={{ fontFamily: 'Cormorant Garamond', fontSize: '2rem', color: 'var(--text-main)', marginBottom: '1rem' }}>ABDUL TARIQUE WARSI</h2>
+            <h2 style={{ fontFamily: 'Cormorant Garamond', fontSize: '2rem', color: 'var(--text-main)', marginBottom: '1rem' }}>
+              ABDUL TARIQUE WARSI
+            </h2>
             <div style={{ display: 'flex', justifyContent: 'center', gap: '2rem', color: 'var(--text-light)', fontSize: '0.9rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>📞 8770463418</span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>✉️ abdultarique5@gmail.com</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                📞 8770463418
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                ✉️ abdultarique5@gmail.com
+              </span>
             </div>
-            <p style={{ color: 'var(--text-light)', fontSize: '0.8rem', letterSpacing: '0.1em', textTransform: 'uppercase' }}>ATW Student Management © 2026</p>
+            <p style={{ color: 'var(--text-light)', fontSize: '0.8rem', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+              ATW Student Management &copy; 2026
+            </p>
           </div>
         </section>
 
       </div>
 
+      {/* Floating Action Button for Attendance System */}
       <motion.button 
-        initial={{ opacity: 0, scale: 0 }}
-        animate={{ opacity: 1, scale: 1 }}
         whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
         onClick={() => setActivePage('attendance')}
         style={{
           position: 'fixed',
-          bottom: '2rem', right: '2rem',
-          background: 'var(--text-accent)', color: '#fff',
-          padding: '1rem 2rem', borderRadius: '30px',
-          border: 'none', cursor: 'pointer',
-          fontFamily: 'Cormorant Garamond', fontSize: '1.2rem', fontStyle: 'italic',
+          bottom: '2rem',
+          right: '2rem',
+          background: 'var(--text-accent)',
+          color: '#fff',
+          padding: '1rem 2rem',
+          borderRadius: '30px',
+          border: 'none',
+          cursor: 'pointer',
+          fontFamily: 'Cormorant Garamond',
+          fontSize: '1.2rem',
+          fontStyle: 'italic',
           boxShadow: '0 10px 25px rgba(153, 127, 99, 0.4)',
           zIndex: 100
         }}
@@ -525,6 +762,7 @@ function App() {
         Take Attendance ✨
       </motion.button>
 
+      {/* Fee Modal Overlay */}
       {selectedStudent && (
         <FeeModal 
           student={selectedStudent} 
