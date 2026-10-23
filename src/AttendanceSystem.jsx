@@ -268,6 +268,36 @@ export default function AttendanceSystem({ students, onBack }) {
     showToast("Remaining students marked absent.", "info");
   };
 
+  const resetClassAttendance = () => {
+    setAttendanceData(prev => {
+      const newData = { ...prev };
+      currentClassStudents.forEach(student => {
+        const targetClass = `${student.Class} ${student.Section || ''}`.trim();
+        if (!newData[targetClass]) newData[targetClass] = {};
+        if (!newData[targetClass][student.Name]) newData[targetClass][student.Name] = {};
+        newData[targetClass][student.Name][selectedDate] = '';
+      });
+      return newData;
+    });
+    setAllMarkState('present');
+    showToast("Attendance reset to 0.", "info");
+  };
+
+  const markAllPresent = () => {
+    setAttendanceData(prev => {
+      const newData = { ...prev };
+      currentClassStudents.forEach(student => {
+        const targetClass = `${student.Class} ${student.Section || ''}`.trim();
+        if (!newData[targetClass]) newData[targetClass] = {};
+        if (!newData[targetClass][student.Name]) newData[targetClass][student.Name] = {};
+        newData[targetClass][student.Name][selectedDate] = 'P';
+      });
+      return newData;
+    });
+    setAllMarkState('absent');
+    showToast("All students marked present.", "success");
+  };
+
   const handleMarkAllToggle = () => {
     let targetStatus = '';
     let nextState = 'present';
@@ -550,6 +580,8 @@ export default function AttendanceSystem({ students, onBack }) {
                 setAttendanceStatus={setAttendanceStatus}
                 onToggleAttendance={setAttendanceStatus} 
                 markRemainingAbsent={markRemainingAbsent}
+                markAllPresent={markAllPresent}
+                resetAttendance={resetClassAttendance}
               />
             )}
             {selectedGame === 'bubble' && (
@@ -586,61 +618,80 @@ export default function AttendanceSystem({ students, onBack }) {
               />
             )}
 
-            {/* Quick Action Floating Bar - Positioned cleanly above bottom game HUD */}
-            <div style={{ 
-              position: 'absolute', 
-              bottom: '5.2rem', 
-              left: '50%', 
-              transform: 'translateX(-50%)', 
-              display: 'flex', 
-              gap: '0.8rem', 
-              alignItems: 'center',
-              background: 'rgba(10, 10, 26, 0.85)', 
-              padding: '0.45rem 1rem', 
-              borderRadius: '30px', 
-              backdropFilter: 'blur(14px)', 
-              border: '1px solid rgba(255, 255, 255, 0.18)', 
-              boxShadow: '0 8px 30px rgba(0, 0, 0, 0.5)',
-              zIndex: 25,
-              whiteSpace: 'nowrap'
-            }}>
-              <button 
-                onClick={handleMarkAllToggle}
-                style={{ 
-                  background: allMarkState === 'present' ? '#2e7d32' : allMarkState === 'absent' ? '#d32f2f' : '#616161',
-                  color: '#fff', 
-                  border: '1px solid rgba(255,255,255,0.25)', 
-                  padding: '0.55rem 1.2rem', 
-                  borderRadius: '20px', 
-                  cursor: 'pointer', 
-                  fontSize: '0.85rem', 
-                  fontWeight: 600,
-                  fontFamily: 'Montserrat, sans-serif',
-                  boxShadow: allMarkState === 'present' ? '0 0 14px rgba(46,125,50,0.5)' : allMarkState === 'absent' ? '0 0 14px rgba(211,47,47,0.5)' : 'none',
-                  transition: 'all 0.25s ease'
-                }}
-              >
-                Mark All {allMarkState === 'present' ? 'Present' : allMarkState === 'absent' ? 'Absent' : 'Clear'}
-              </button>
-              <button 
-                onClick={markRemainingAbsent}
-                style={{ 
-                  background: '#c62828', 
-                  color: '#fff', 
-                  border: '1px solid rgba(255,255,255,0.25)', 
-                  padding: '0.55rem 1.2rem', 
-                  borderRadius: '20px', 
-                  cursor: 'pointer', 
-                  fontSize: '0.85rem', 
-                  fontWeight: 600,
-                  fontFamily: 'Montserrat, sans-serif',
-                  boxShadow: '0 0 14px rgba(198,40,40,0.4)',
-                  transition: 'all 0.25s ease' 
-                }}
-              >
-                Mark Remaining Absent
-              </button>
-            </div>
+            {/* Quick Action Floating Bar - For Bubble, Falling Stars, Target games */}
+            {selectedGame !== 'constellation' && (
+              <div style={{ 
+                position: 'absolute', 
+                bottom: '2rem', 
+                left: '50%', 
+                transform: 'translateX(-50%)', 
+                display: 'flex', 
+                gap: '0.8rem', 
+                alignItems: 'center',
+                background: 'rgba(10, 10, 26, 0.85)', 
+                padding: '0.45rem 1rem', 
+                borderRadius: '30px', 
+                backdropFilter: 'blur(14px)', 
+                border: '1px solid rgba(255, 255, 255, 0.18)', 
+                boxShadow: '0 8px 30px rgba(0, 0, 0, 0.5)',
+                zIndex: 25,
+                whiteSpace: 'nowrap'
+              }}>
+                <button 
+                  onClick={handleMarkAllToggle}
+                  style={{ 
+                    background: allMarkState === 'present' ? '#2e7d32' : allMarkState === 'absent' ? '#d32f2f' : '#616161',
+                    color: '#fff', 
+                    border: '1px solid rgba(255,255,255,0.25)', 
+                    padding: '0.55rem 1.2rem', 
+                    borderRadius: '20px', 
+                    cursor: 'pointer', 
+                    fontSize: '0.85rem', 
+                    fontWeight: 600,
+                    fontFamily: 'Montserrat, sans-serif',
+                    boxShadow: allMarkState === 'present' ? '0 0 14px rgba(46,125,50,0.5)' : allMarkState === 'absent' ? '0 0 14px rgba(211,47,47,0.5)' : 'none',
+                    transition: 'all 0.25s ease'
+                  }}
+                >
+                  Mark All {allMarkState === 'present' ? 'Present' : allMarkState === 'absent' ? 'Absent' : 'Clear'}
+                </button>
+                <button 
+                  onClick={markRemainingAbsent}
+                  style={{ 
+                    background: '#c62828', 
+                    color: '#fff', 
+                    border: '1px solid rgba(255,255,255,0.25)', 
+                    padding: '0.55rem 1.2rem', 
+                    borderRadius: '20px', 
+                    cursor: 'pointer', 
+                    fontSize: '0.85rem', 
+                    fontWeight: 600,
+                    fontFamily: 'Montserrat, sans-serif',
+                    boxShadow: '0 0 14px rgba(198,40,40,0.4)',
+                    transition: 'all 0.25s ease' 
+                  }}
+                >
+                  Mark Remaining Absent
+                </button>
+                <button 
+                  onClick={resetClassAttendance}
+                  style={{ 
+                    background: 'rgba(239, 68, 68, 0.25)', 
+                    color: '#fca5a5', 
+                    border: '1px solid rgba(239, 68, 68, 0.5)', 
+                    padding: '0.55rem 1.2rem', 
+                    borderRadius: '20px', 
+                    cursor: 'pointer', 
+                    fontSize: '0.85rem', 
+                    fontWeight: 600,
+                    fontFamily: 'Montserrat, sans-serif',
+                    transition: 'all 0.25s ease' 
+                  }}
+                >
+                  Reset
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           /* Register Table View */
