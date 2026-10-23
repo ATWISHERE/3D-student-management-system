@@ -182,7 +182,8 @@ function ConstellationLines({ selectedShape, isGathered, isFinished }) {
   );
 }
 
-export default function ConstellationGame({ students, attendanceData, selectedClass, selectedClasses, selectedDate, setAttendanceStatus, markRemainingAbsent }) {
+export default function ConstellationGame({ students, attendanceData, selectedClass, selectedClasses, selectedDate, setAttendanceStatus, onToggleAttendance, markRemainingAbsent }) {
+  const toggleAttendance = setAttendanceStatus || onToggleAttendance;
   const [isGathered, setIsGathered] = useState(false);
   const [selectedShape, setSelectedShape] = useState(() => Object.keys(SHAPES)[0]);
   const [ecoMode, setEcoMode] = useState(false);
@@ -330,10 +331,12 @@ export default function ConstellationGame({ students, attendanceData, selectedCl
               clusterColor={clusterColor}
               ecoMode={ecoMode}
               onClick={() => {
-                if (!isPresent) {
-                  setAttendanceStatus(student.Name, 'P', studentClass);
-                } else {
-                  setAttendanceStatus(student.Name, '', studentClass);
+                if (toggleAttendance) {
+                  if (!isPresent) {
+                    toggleAttendance(student.Name, 'P', studentClass);
+                  } else {
+                    toggleAttendance(student.Name, '', studentClass);
+                  }
                 }
               }}
             />

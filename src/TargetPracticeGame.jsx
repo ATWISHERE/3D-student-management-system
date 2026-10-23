@@ -94,7 +94,8 @@ function TargetObject({ student, index, total, isPresent, isAbsent, onClick }) {
   );
 }
 
-export default function TargetPracticeGame({ students, attendanceData, selectedClass, selectedClasses, selectedDate, setAttendanceStatus, markRemainingAbsent }) {
+export default function TargetPracticeGame({ students, attendanceData, selectedClass, selectedClasses, selectedDate, setAttendanceStatus, onToggleAttendance, markRemainingAbsent }) {
+  const toggleAttendance = setAttendanceStatus || onToggleAttendance;
   const getStudentClass = (s) => (s.Class ? `${s.Class} ${s.Section || ''}`.trim() : selectedClass);
 
   return (
@@ -115,7 +116,7 @@ export default function TargetPracticeGame({ students, attendanceData, selectedC
               total={students.length}
               isPresent={status === 'P'} 
               isAbsent={status === 'A'}
-              onClick={() => { if (status !== 'P') setAttendanceStatus(student.Name, 'P', studentClass); }}
+              onClick={() => { if (toggleAttendance && status !== 'P') toggleAttendance(student.Name, 'P', studentClass); }}
             />
           );
         })}

@@ -94,7 +94,8 @@ function BubbleNode({ student, initialPos, isPresent, isAbsent, onClick }) {
   );
 }
 
-export default function BubblePopperGame({ students, attendanceData, selectedClass, selectedClasses, selectedDate, setAttendanceStatus, markRemainingAbsent }) {
+export default function BubblePopperGame({ students, attendanceData, selectedClass, selectedClasses, selectedDate, setAttendanceStatus, onToggleAttendance, markRemainingAbsent }) {
+  const toggleAttendance = setAttendanceStatus || onToggleAttendance;
   const initialPositions = useMemo(() => {
     return students.map((_, i) => new THREE.Vector3(
       (Math.random() - 0.5) * 25,
@@ -126,7 +127,7 @@ export default function BubblePopperGame({ students, attendanceData, selectedCla
               isPresent={status === 'P'}
               isAbsent={status === 'A'}
               onClick={() => {
-                if (status !== 'P') setAttendanceStatus(student.Name, 'P', studentClass);
+                if (toggleAttendance && status !== 'P') toggleAttendance(student.Name, 'P', studentClass);
               }}
             />
           );

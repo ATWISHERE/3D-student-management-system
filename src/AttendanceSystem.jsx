@@ -35,8 +35,14 @@ export default function AttendanceSystem({ students, onBack }) {
     localStorage.setItem('attendanceDataCache', JSON.stringify(attendanceData));
   }, [attendanceData]);
 
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [editMode, setEditMode] = useState(false); // Admin edit mode for past dates
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
+  const [editMode, setEditMode] = useState(true); // Always allow editing by default
   const fileInputRef = useRef(null);
   
   const [exportStartClass, setExportStartClass] = useState(1);
@@ -220,11 +226,6 @@ export default function AttendanceSystem({ students, onBack }) {
   });
 
   const setAttendanceStatus = (studentName, status, targetClassOverride) => {
-    if (isPastDate && !editMode) {
-      showToast("Please enable Admin Edit Mode (Gear Icon) to change past attendance.", "warning");
-      return;
-    }
-
     setAttendanceData(prev => {
       const studentObj = currentClassStudents.find(s => 
         s.Name === studentName && (!targetClassOverride || `${s.Class} ${s.Section || ''}`.trim() === targetClassOverride)
@@ -251,10 +252,6 @@ export default function AttendanceSystem({ students, onBack }) {
   };
 
   const markRemainingAbsent = () => {
-    if (isPastDate && !editMode) {
-      showToast("Please enable Admin Edit Mode to change past attendance.", "warning");
-      return;
-    }
     setAttendanceData(prev => {
       const newData = { ...prev };
       currentClassStudents.forEach(student => {
@@ -272,11 +269,6 @@ export default function AttendanceSystem({ students, onBack }) {
   };
 
   const handleMarkAllToggle = () => {
-    if (isPastDate && !editMode) {
-      showToast("Please enable Admin Edit Mode to change past attendance.", "warning");
-      return;
-    }
-    
     let targetStatus = '';
     let nextState = 'present';
 
@@ -555,6 +547,7 @@ export default function AttendanceSystem({ students, onBack }) {
                 attendanceData={attendanceData} 
                 selectedClass={selectedClasses[0]} 
                 selectedDate={selectedDate} 
+                setAttendanceStatus={setAttendanceStatus}
                 onToggleAttendance={setAttendanceStatus} 
                 markRemainingAbsent={markRemainingAbsent}
               />
@@ -565,6 +558,7 @@ export default function AttendanceSystem({ students, onBack }) {
                 attendanceData={attendanceData} 
                 selectedClass={selectedClasses[0]} 
                 selectedDate={selectedDate} 
+                setAttendanceStatus={setAttendanceStatus}
                 onToggleAttendance={setAttendanceStatus} 
                 markRemainingAbsent={markRemainingAbsent}
               />
@@ -575,6 +569,7 @@ export default function AttendanceSystem({ students, onBack }) {
                 attendanceData={attendanceData} 
                 selectedClass={selectedClasses[0]} 
                 selectedDate={selectedDate} 
+                setAttendanceStatus={setAttendanceStatus}
                 onToggleAttendance={setAttendanceStatus} 
                 markRemainingAbsent={markRemainingAbsent}
               />
@@ -585,6 +580,7 @@ export default function AttendanceSystem({ students, onBack }) {
                 attendanceData={attendanceData} 
                 selectedClass={selectedClasses[0]} 
                 selectedDate={selectedDate} 
+                setAttendanceStatus={setAttendanceStatus}
                 onToggleAttendance={setAttendanceStatus} 
                 markRemainingAbsent={markRemainingAbsent}
               />

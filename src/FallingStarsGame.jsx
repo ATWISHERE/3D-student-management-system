@@ -80,7 +80,8 @@ function StarObject({ student, initialPos, isPresent, isAbsent, onClick }) {
   );
 }
 
-export default function FallingStarsGame({ students, attendanceData, selectedClass, selectedClasses, selectedDate, setAttendanceStatus, markRemainingAbsent }) {
+export default function FallingStarsGame({ students, attendanceData, selectedClass, selectedClasses, selectedDate, setAttendanceStatus, onToggleAttendance, markRemainingAbsent }) {
+  const toggleAttendance = setAttendanceStatus || onToggleAttendance;
   const initialPositions = useMemo(() => students.map(() => new THREE.Vector3((Math.random() - 0.5) * 30, Math.random() * 30 + 5, (Math.random() - 0.5) * 10)), [students]);
 
   const getStudentClass = (s) => (s.Class ? `${s.Class} ${s.Section || ''}`.trim() : selectedClass);
@@ -102,7 +103,7 @@ export default function FallingStarsGame({ students, attendanceData, selectedCla
               initialPos={initialPositions[idx]}
               isPresent={status === 'P'} 
               isAbsent={status === 'A'}
-              onClick={() => { if (status !== 'P') setAttendanceStatus(student.Name, 'P', studentClass); }}
+              onClick={() => { if (toggleAttendance && status !== 'P') toggleAttendance(student.Name, 'P', studentClass); }}
             />
           );
         })}
