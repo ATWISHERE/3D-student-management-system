@@ -1,7 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
+import { Canvas } from '@react-three/fiber';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
 import { Settings, Upload, Save, Check, X, ShieldAlert, Gamepad2, List } from 'lucide-react';
+import ThreeScene from './ThreeBackground';
 import ConstellationGame from './ConstellationGame';
 import BubblePopperGame from './BubblePopperGame';
 import FallingStarsGame from './FallingStarsGame';
@@ -319,6 +321,17 @@ export default function AttendanceSystem({ students, onBack }) {
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100vh', overflowY: activeView === 'register' ? 'auto' : 'hidden', background: activeView === 'game' ? '#0a0a1a' : '#fcfbfa', transition: 'background 0.5s ease' }}>
       
+      {/* 3D Decorative Bubbles Background for Register View */}
+      {activeView === 'register' && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', pointerEvents: 'none', zIndex: 0 }}>
+          <Canvas camera={{ position: [0, 0, 8], fov: 45 }}>
+            <Suspense fallback={null}>
+              <ThreeScene />
+            </Suspense>
+          </Canvas>
+        </div>
+      )}
+
       {/* Toast Notification */}
       <AnimatePresence>
         {toast && (
@@ -543,6 +556,7 @@ export default function AttendanceSystem({ students, onBack }) {
                 selectedClass={selectedClasses[0]} 
                 selectedDate={selectedDate} 
                 onToggleAttendance={setAttendanceStatus} 
+                markRemainingAbsent={markRemainingAbsent}
               />
             )}
             {selectedGame === 'bubble' && (
@@ -552,6 +566,7 @@ export default function AttendanceSystem({ students, onBack }) {
                 selectedClass={selectedClasses[0]} 
                 selectedDate={selectedDate} 
                 onToggleAttendance={setAttendanceStatus} 
+                markRemainingAbsent={markRemainingAbsent}
               />
             )}
             {selectedGame === 'falling' && (
@@ -561,6 +576,7 @@ export default function AttendanceSystem({ students, onBack }) {
                 selectedClass={selectedClasses[0]} 
                 selectedDate={selectedDate} 
                 onToggleAttendance={setAttendanceStatus} 
+                markRemainingAbsent={markRemainingAbsent}
               />
             )}
             {selectedGame === 'target' && (
@@ -570,23 +586,61 @@ export default function AttendanceSystem({ students, onBack }) {
                 selectedClass={selectedClasses[0]} 
                 selectedDate={selectedDate} 
                 onToggleAttendance={setAttendanceStatus} 
+                markRemainingAbsent={markRemainingAbsent}
               />
             )}
 
-            {/* Quick Action Floating Bar */}
-            <div style={{ position: 'absolute', bottom: '2rem', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '1rem', background: 'rgba(0,0,0,0.6)', padding: '0.5rem 1rem', borderRadius: '30px', backdropFilter: 'blur(10px)', zIndex: 10 }}>
+            {/* Quick Action Floating Bar - Positioned cleanly above bottom game HUD */}
+            <div style={{ 
+              position: 'absolute', 
+              bottom: '5.2rem', 
+              left: '50%', 
+              transform: 'translateX(-50%)', 
+              display: 'flex', 
+              gap: '0.8rem', 
+              alignItems: 'center',
+              background: 'rgba(10, 10, 26, 0.85)', 
+              padding: '0.45rem 1rem', 
+              borderRadius: '30px', 
+              backdropFilter: 'blur(14px)', 
+              border: '1px solid rgba(255, 255, 255, 0.18)', 
+              boxShadow: '0 8px 30px rgba(0, 0, 0, 0.5)',
+              zIndex: 25,
+              whiteSpace: 'nowrap'
+            }}>
               <button 
                 onClick={handleMarkAllToggle}
                 style={{ 
-                  background: allMarkState === 'present' ? '#4caf50' : allMarkState === 'absent' ? '#f44336' : '#888',
-                  color: '#fff', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '20px', cursor: 'pointer', fontSize: '0.85rem' 
+                  background: allMarkState === 'present' ? '#2e7d32' : allMarkState === 'absent' ? '#d32f2f' : '#616161',
+                  color: '#fff', 
+                  border: '1px solid rgba(255,255,255,0.25)', 
+                  padding: '0.55rem 1.2rem', 
+                  borderRadius: '20px', 
+                  cursor: 'pointer', 
+                  fontSize: '0.85rem', 
+                  fontWeight: 600,
+                  fontFamily: 'Montserrat, sans-serif',
+                  boxShadow: allMarkState === 'present' ? '0 0 14px rgba(46,125,50,0.5)' : allMarkState === 'absent' ? '0 0 14px rgba(211,47,47,0.5)' : 'none',
+                  transition: 'all 0.25s ease'
                 }}
               >
                 Mark All {allMarkState === 'present' ? 'Present' : allMarkState === 'absent' ? 'Absent' : 'Clear'}
               </button>
               <button 
                 onClick={markRemainingAbsent}
-                style={{ background: '#f44336', color: '#fff', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '20px', cursor: 'pointer', fontSize: '0.85rem' }}
+                style={{ 
+                  background: '#c62828', 
+                  color: '#fff', 
+                  border: '1px solid rgba(255,255,255,0.25)', 
+                  padding: '0.55rem 1.2rem', 
+                  borderRadius: '20px', 
+                  cursor: 'pointer', 
+                  fontSize: '0.85rem', 
+                  fontWeight: 600,
+                  fontFamily: 'Montserrat, sans-serif',
+                  boxShadow: '0 0 14px rgba(198,40,40,0.4)',
+                  transition: 'all 0.25s ease' 
+                }}
               >
                 Mark Remaining Absent
               </button>
@@ -597,7 +651,7 @@ export default function AttendanceSystem({ students, onBack }) {
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            style={{ padding: '2rem 10vw', maxWidth: '1200px', margin: '0 auto' }}
+            style={{ position: 'relative', zIndex: 1, padding: '2rem 10vw', maxWidth: '1200px', margin: '0 auto' }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
               <div>

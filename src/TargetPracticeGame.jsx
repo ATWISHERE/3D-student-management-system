@@ -127,11 +127,6 @@ export default function TargetPracticeGame({ students, attendanceData, selectedC
 
         <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
       </Canvas>
-      <div style={{ position: 'absolute', bottom: '1.5rem', left: '1.5rem', zIndex: 10 }}>
-        <button onClick={markRemainingAbsent} style={{ background: 'rgba(255, 50, 50, 0.9)', color: '#fff', border: '1px solid rgba(255,150,150,0.8)', padding: '1rem 2rem', borderRadius: '30px', fontFamily: 'Cormorant Garamond', fontSize: '1.2rem', cursor: 'pointer', boxShadow: '0 0 25px rgba(255, 50, 50, 0.6)', transition: 'transform 0.2s', fontWeight: 'bold' }} onMouseOver={e => e.target.style.transform='scale(1.05)'} onMouseOut={e => e.target.style.transform='scale(1)'}>
-          Finish Game (Mark Absent)
-        </button>
-      </div>
     </div>
   );
 }

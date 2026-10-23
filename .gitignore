@@ -24,3 +24,5 @@ dist-ssr
 *.sw?
 *.lnk
 *_backup.*
+~$*
+cookie

@@ -361,26 +361,44 @@ export default function ConstellationGame({ students, attendanceData, selectedCl
       </Canvas>
       
       {/* HUD Controls */}
-      <div style={{ position: 'absolute', bottom: '1rem', left: '1rem', right: '1rem', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: '1rem', pointerEvents: 'auto' }}>
+      <div style={{ 
+        position: 'absolute', 
+        bottom: '1rem', 
+        left: '50%', 
+        transform: 'translateX(-50%)', 
+        display: 'flex', 
+        flexWrap: 'wrap', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        gap: '0.8rem', 
+        pointerEvents: 'auto',
+        background: 'rgba(10, 10, 26, 0.65)',
+        padding: '0.4rem 1rem',
+        borderRadius: '30px',
+        backdropFilter: 'blur(12px)',
+        border: '1px solid rgba(255, 255, 255, 0.12)',
+        maxWidth: '92vw',
+        zIndex: 10
+      }}>
         
         <button 
           onClick={() => setEcoMode(!ecoMode)}
           style={{
-            background: ecoMode ? 'rgba(76, 175, 80, 0.8)' : 'rgba(0,0,0,0.5)',
+            background: ecoMode ? 'rgba(76, 175, 80, 0.8)' : 'rgba(255,255,255,0.08)',
             color: '#fff',
-            border: '1px solid rgba(255,255,255,0.5)', padding: '0.8rem 1.2rem', borderRadius: '25px',
-            fontFamily: 'Cormorant Garamond', fontSize: '1rem', cursor: 'pointer', transition: 'all 0.3s'
+            border: '1px solid rgba(255,255,255,0.3)', padding: '0.6rem 1.1rem', borderRadius: '20px',
+            fontFamily: 'Montserrat, sans-serif', fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.3s'
           }}
         >
           {ecoMode ? "Eco Mode: ON" : "Eco Mode: OFF"}
         </button>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', background: 'rgba(0,0,0,0.6)', padding: '0.3rem 0.8rem', borderRadius: '15px', border: '1px solid rgba(255,255,255,0.2)' }}>
-          <label style={{ color: '#aaa', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.1em', textAlign: 'center' }}>Shape of the Day</label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.08)', padding: '0.35rem 0.8rem', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.2)' }}>
+          <label style={{ color: '#aaa', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>Shape:</label>
           <select 
             value={selectedShape}
             onChange={e => setSelectedShape(e.target.value)}
-            style={{ padding: '0.2rem 0.5rem', borderRadius: '8px', background: '#fff', outline: 'none', border: 'none', fontWeight: 'bold', fontSize: '0.9rem', cursor: 'pointer' }}
+            style={{ padding: '0.2rem 0.5rem', borderRadius: '8px', background: '#fff', color: '#111', outline: 'none', border: 'none', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer' }}
           >
             {shapeKeys.map(k => <option key={k} value={k}>{k}</option>)}
           </select>
@@ -389,29 +407,14 @@ export default function ConstellationGame({ students, attendanceData, selectedCl
         <button 
           onClick={() => setIsGathered(!isGathered)}
           style={{
-            background: isGathered ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.5)',
+            background: isGathered ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.08)',
             color: isGathered ? '#000' : '#fff',
-            border: '1px solid rgba(255,255,255,0.5)', padding: '0.8rem 1.2rem', borderRadius: '25px',
-            fontFamily: 'Cormorant Garamond', fontSize: '1rem', cursor: 'pointer', transition: 'all 0.3s',
-            boxShadow: isGathered ? '0 0 20px rgba(255,255,255,0.5)' : 'none'
+            border: '1px solid rgba(255,255,255,0.3)', padding: '0.6rem 1.1rem', borderRadius: '20px',
+            fontFamily: 'Montserrat, sans-serif', fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.3s',
+            boxShadow: isGathered ? '0 0 15px rgba(255,255,255,0.4)' : 'none'
           }}
         >
           {isGathered ? "Release Stars" : "Gather Stars"}
-        </button>
-        
-        <button 
-          onClick={() => {
-            markRemainingAbsent();
-            setIsFinished(true);
-          }}
-          style={{
-            background: 'rgba(255, 50, 50, 0.8)', color: '#fff',
-            border: '1px solid rgba(255,100,100,0.8)', padding: '0.8rem 1.2rem', borderRadius: '25px',
-            fontFamily: 'Cormorant Garamond', fontSize: '1rem', cursor: 'pointer', transition: 'all 0.3s',
-            boxShadow: '0 0 15px rgba(255, 50, 50, 0.4)'
-          }}
-        >
-          Finish Game
         </button>
 
         <button 
@@ -420,9 +423,9 @@ export default function ConstellationGame({ students, attendanceData, selectedCl
             setSelectedShape(randomKey);
           }}
           style={{
-            background: 'rgba(100, 100, 255, 0.8)', color: '#fff',
-            border: '1px solid rgba(150,150,255,0.8)', padding: '0.8rem 1.2rem', borderRadius: '25px',
-            fontFamily: 'Cormorant Garamond', fontSize: '1rem', cursor: 'pointer', transition: 'all 0.3s'
+            background: 'rgba(100, 100, 255, 0.7)', color: '#fff',
+            border: '1px solid rgba(150,150,255,0.6)', padding: '0.6rem 1.1rem', borderRadius: '20px',
+            fontFamily: 'Montserrat, sans-serif', fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.3s'
           }}
         >
           Random Shape
@@ -434,9 +437,9 @@ export default function ConstellationGame({ students, attendanceData, selectedCl
             setIsGathered(false);
           }}
           style={{
-            background: 'rgba(255, 150, 50, 0.8)', color: '#fff',
-            border: '1px solid rgba(255,200,100,0.8)', padding: '0.8rem 1.2rem', borderRadius: '25px',
-            fontFamily: 'Cormorant Garamond', fontSize: '1rem', cursor: 'pointer', transition: 'all 0.3s'
+            background: 'rgba(255, 150, 50, 0.7)', color: '#fff',
+            border: '1px solid rgba(255,200,100,0.6)', padding: '0.6rem 1.1rem', borderRadius: '20px',
+            fontFamily: 'Montserrat, sans-serif', fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.3s'
           }}
         >
           Reset
