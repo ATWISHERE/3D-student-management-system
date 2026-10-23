@@ -599,28 +599,31 @@ export default function ConstellationGame({
         />
       </Canvas>
       
-      {/* Bottom HUD Controls Bar */}
+      {/* Bottom HUD Controls Bar - Compact Single Line Ribbon */}
       <div style={{ 
         position: 'absolute', 
-        bottom: '1.2rem', 
+        bottom: '0.8rem', 
         left: '50%', 
         transform: 'translateX(-50%)', 
         display: 'flex', 
-        flexWrap: 'wrap', 
+        flexWrap: 'nowrap', 
+        whiteSpace: 'nowrap',
         justifyContent: 'center', 
         alignItems: 'center', 
-        gap: '0.65rem', 
-        background: 'rgba(10, 12, 30, 0.88)',
-        padding: '0.5rem 1.2rem',
-        borderRadius: '35px',
+        gap: '0.35rem', 
+        background: 'rgba(10, 12, 30, 0.92)',
+        padding: '0.3rem 0.65rem',
+        borderRadius: '24px',
         backdropFilter: 'blur(16px)',
-        border: '1px solid rgba(255, 255, 255, 0.18)',
-        boxShadow: '0 10px 40px rgba(0, 0, 0, 0.6)',
-        maxWidth: '95vw',
+        border: '1px solid rgba(255, 255, 255, 0.16)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.6)',
+        maxWidth: '96vw',
+        overflowX: 'auto',
+        scrollbarWidth: 'none',
         zIndex: 25
       }}>
         
-        {/* Complete Button: marks unclicked absent, forms constellation, and lights up glowing shape */}
+        {/* Complete Button */}
         <button 
           onClick={handleComplete}
           title="Mark unclicked students absent and ignite the glowing constellation"
@@ -628,34 +631,36 @@ export default function ConstellationGame({
             background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
             color: '#fff',
             border: '1px solid rgba(255,255,255,0.4)',
-            padding: '0.6rem 1.3rem',
-            borderRadius: '22px',
+            padding: '0.35rem 0.75rem',
+            borderRadius: '16px',
             fontFamily: 'Montserrat, sans-serif',
-            fontSize: '0.88rem',
+            fontSize: '0.78rem',
             fontWeight: 700,
             cursor: 'pointer',
-            boxShadow: '0 0 16px rgba(16, 185, 129, 0.55)',
-            transition: 'all 0.25s ease'
+            boxShadow: '0 0 12px rgba(16, 185, 129, 0.5)',
+            transition: 'all 0.2s ease',
+            flexShrink: 0
           }}
         >
           ✨ Complete
         </button>
 
-        {/* Reset Button: resets attendance to 0, hides shape, and scatters stars */}
+        {/* Reset Button */}
         <button 
           onClick={handleReset}
           title="Reset all attendance to 0, hide shape, and scatter stars"
           style={{
             background: 'rgba(239, 68, 68, 0.25)',
             color: '#fca5a5',
-            border: '1px solid rgba(239, 68, 68, 0.55)',
-            padding: '0.6rem 1.15rem',
-            borderRadius: '22px',
+            border: '1px solid rgba(239, 68, 68, 0.5)',
+            padding: '0.35rem 0.65rem',
+            borderRadius: '16px',
             fontFamily: 'Montserrat, sans-serif',
-            fontSize: '0.85rem',
+            fontSize: '0.76rem',
             fontWeight: 600,
             cursor: 'pointer',
-            transition: 'all 0.25s ease'
+            transition: 'all 0.2s ease',
+            flexShrink: 0
           }}
         >
           ↺ Reset
@@ -668,14 +673,15 @@ export default function ConstellationGame({
           style={{
             background: 'rgba(59, 130, 246, 0.25)',
             color: '#93c5fd',
-            border: '1px solid rgba(59, 130, 246, 0.55)',
-            padding: '0.6rem 1.1rem',
-            borderRadius: '22px',
+            border: '1px solid rgba(59, 130, 246, 0.5)',
+            padding: '0.35rem 0.65rem',
+            borderRadius: '16px',
             fontFamily: 'Montserrat, sans-serif',
-            fontSize: '0.85rem',
+            fontSize: '0.76rem',
             fontWeight: 600,
             cursor: 'pointer',
-            transition: 'all 0.25s ease'
+            transition: 'all 0.2s ease',
+            flexShrink: 0
           }}
         >
           Mark All Present
@@ -685,17 +691,18 @@ export default function ConstellationGame({
         <div style={{ 
           display: 'flex', 
           alignItems: 'center', 
-          gap: '0.4rem', 
-          background: 'rgba(255,255,255,0.08)', 
-          padding: '0.35rem 0.8rem', 
-          borderRadius: '20px', 
-          border: '1px solid rgba(255,255,255,0.2)' 
+          gap: '0.3rem', 
+          background: 'rgba(255,255,255,0.06)', 
+          padding: '0.2rem 0.55rem', 
+          borderRadius: '16px', 
+          border: '1px solid rgba(255,255,255,0.18)',
+          flexShrink: 0
         }}>
           <label style={{ 
-            color: '#cbd5e1', 
-            fontSize: '0.75rem', 
+            color: '#94a3b8', 
+            fontSize: '0.68rem', 
             textTransform: 'uppercase', 
-            letterSpacing: '0.08em', 
+            letterSpacing: '0.06em', 
             fontWeight: 700 
           }}>
             Shape:
@@ -704,14 +711,14 @@ export default function ConstellationGame({
             value={selectedShape}
             onChange={e => setSelectedShape(e.target.value)}
             style={{ 
-              padding: '0.25rem 0.6rem', 
-              borderRadius: '10px', 
+              padding: '0.18rem 0.45rem', 
+              borderRadius: '8px', 
               background: '#1e293b', 
               color: '#f8fafc', 
               outline: 'none', 
               border: '1px solid rgba(255,255,255,0.2)', 
               fontWeight: 600, 
-              fontSize: '0.85rem', 
+              fontSize: '0.76rem', 
               cursor: 'pointer' 
             }}
           >
@@ -727,19 +734,20 @@ export default function ConstellationGame({
           }}
           title="Choose a random constellation shape"
           style={{
-            background: 'rgba(147, 51, 234, 0.3)',
+            background: 'rgba(147, 51, 234, 0.25)',
             color: '#d8b4fe',
-            border: '1px solid rgba(168, 85, 247, 0.55)',
-            padding: '0.6rem 1.1rem',
-            borderRadius: '22px',
+            border: '1px solid rgba(168, 85, 247, 0.5)',
+            padding: '0.35rem 0.65rem',
+            borderRadius: '16px',
             fontFamily: 'Montserrat, sans-serif',
-            fontSize: '0.85rem',
+            fontSize: '0.76rem',
             fontWeight: 600,
             cursor: 'pointer',
-            transition: 'all 0.25s ease'
+            transition: 'all 0.2s ease',
+            flexShrink: 0
           }}
         >
-          🎲 Random Shape
+          🎲 Random
         </button>
 
         {/* Gather / Release Stars Button */}
@@ -748,19 +756,20 @@ export default function ConstellationGame({
           title="Toggle between organized grid and 3D scattered orbit"
           style={{
             background: isGathered ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.08)',
-            color: isGathered ? '#0f172a' : '#fff',
-            border: '1px solid rgba(255,255,255,0.3)',
-            padding: '0.6rem 1.1rem',
-            borderRadius: '22px',
+            color: isGathered ? '#0f172a' : '#e2e8f0',
+            border: '1px solid rgba(255,255,255,0.25)',
+            padding: '0.35rem 0.65rem',
+            borderRadius: '16px',
             fontFamily: 'Montserrat, sans-serif',
-            fontSize: '0.85rem',
+            fontSize: '0.76rem',
             fontWeight: 600,
             cursor: 'pointer',
-            transition: 'all 0.25s ease',
-            boxShadow: isGathered ? '0 0 15px rgba(255,255,255,0.4)' : 'none'
+            transition: 'all 0.2s ease',
+            boxShadow: isGathered ? '0 0 10px rgba(255,255,255,0.3)' : 'none',
+            flexShrink: 0
           }}
         >
-          {isGathered ? "Release Stars" : "Gather Stars"}
+          {isGathered ? "Release" : "Gather Stars"}
         </button>
 
         {/* Eco Mode Toggle */}
@@ -768,19 +777,20 @@ export default function ConstellationGame({
           onClick={() => setEcoMode(!ecoMode)}
           title="Toggle performance mode"
           style={{
-            background: ecoMode ? 'rgba(16, 185, 129, 0.3)' : 'rgba(255,255,255,0.08)',
+            background: ecoMode ? 'rgba(16, 185, 129, 0.25)' : 'rgba(255,255,255,0.06)',
             color: ecoMode ? '#34d399' : '#94a3b8',
-            border: ecoMode ? '1px solid rgba(52, 211, 153, 0.6)' : '1px solid rgba(255,255,255,0.2)',
-            padding: '0.6rem 1.1rem',
-            borderRadius: '22px',
+            border: ecoMode ? '1px solid rgba(52, 211, 153, 0.5)' : '1px solid rgba(255,255,255,0.18)',
+            padding: '0.35rem 0.65rem',
+            borderRadius: '16px',
             fontFamily: 'Montserrat, sans-serif',
-            fontSize: '0.85rem',
+            fontSize: '0.76rem',
             fontWeight: 600,
             cursor: 'pointer',
-            transition: 'all 0.25s ease'
+            transition: 'all 0.2s ease',
+            flexShrink: 0
           }}
         >
-          {ecoMode ? "Eco Mode: ON" : "Eco Mode: OFF"}
+          {ecoMode ? "Eco: ON" : "Eco: OFF"}
         </button>
       </div>
     </div>
