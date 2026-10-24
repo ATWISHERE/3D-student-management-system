@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ATW Logo — Cinematic Reveal Animation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;800&family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background: radial-gradient(circle at 50% 45%, #18120c 0%, #0a0806 50%, #030303 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #f8fafc;
+      font-family: 'Montserrat', sans-serif;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Ambient particle backdrop canvas */
+    #ambientCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* Stage Container */
+    .stage {
+      position: relative;
+      width: 520px;
+      height: 520px;
+      max-width: 90vw;
+      max-height: 90vw;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+
+    /* Outer Squircle Container matching Option 3 */
+    .squircle-frame {
+      position: absolute;
+      width: 440px;
+      height: 440px;
+      border-radius: 95px;
+      background: radial-gradient(circle at 40% 30%, #1e1915 0%, #0d0b09 70%, #040302 100%);
+      box-shadow: 
+        0 25px 60px rgba(0, 0, 0, 0.9),
+        inset 0 1px 2px rgba(255, 215, 0, 0.15),
+        inset 0 -2px 6px rgba(0, 0, 0, 0.8),
+        0 0 40px rgba(212, 175, 55, 0.08);
+      border: 1px solid rgba(255, 215, 0, 0.18);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      transition: box-shadow 0.8s ease, transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .squircle-frame.glow-active {
+      box-shadow: 
+        0 30px 80px rgba(0, 0, 0, 0.95),
+        inset 0 1px 3px rgba(255, 220, 100, 0.4),
+        0 0 60px rgba(245, 158, 11, 0.28),
+        0 0 120px rgba(217, 119, 6, 0.15);
+      border-color: rgba(255, 215, 0, 0.4);
+    }
+
+    /* Final high-res image reveal layer */
+    .final-logo-img {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 95px;
+      opacity: 0;
+      transform: scale(0.96);
+      transition: opacity 1.2s ease, transform 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    .final-logo-img.revealed {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    /* SVG Overlay for the Snake tracing and drawing */
+    #animSvg {
+      position: absolute;
+      width: 400px;
+      height: 400px;
+      z-index: 6;
+      overflow: visible;
+      pointer-events: none;
+    }
+
+    /* Spark Snake Head */
+    .snake-head {
+      fill: #ffffff;
+      filter: url(#glowFilter);
+      transition: opacity 0.3s;
+    }
+
+    /* Lens Flare Flash Burst */
+    .lens-flare {
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255, 240, 180, 0.9) 0%, rgba(245, 158, 11, 0.4) 30%, rgba(180, 83, 9, 0.1) 60%, transparent 75%);
+      mix-blend-mode: screen;
+      pointer-events: none;
+      opacity: 0;
+      transform: scale(0.2);
+      transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.6s ease;
+      z-index: 20;
+    }
+
+    .lens-flare.flash {
+      opacity: 1;
+      transform: scale(1.4);
+    }
+
+    /* Title & Typography */
+    .info-panel {
+      margin-top: 1.5rem;
+      text-align: center;
+      z-index: 10;
+    }
+
+    .title {
+      font-family: 'Cinzel', serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: 0.35em;
+      background: linear-gradient(135deg, #ffffff 0%, #ffd700 50%, #d97706 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 4px 20px rgba(245, 158, 11, 0.3);
+      margin-bottom: 0.3rem;
+    }
+
+    .subtitle {
+      font-size: 0.78rem;
+      letter-spacing: 0.25em;
+      color: #a8a29e;
+      text-transform: uppercase;
+    }
+
+    /* Controls Tray */
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      margin-top: 1.4rem;
+      z-index: 10;
+    }
+
+    .btn {
+      background: rgba(25, 20, 16, 0.85);
+      border: 1px solid rgba(255, 215, 0, 0.25);
+      color: #f5f5f4;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.55rem 1.2rem;
+      border-radius: 30px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      backdrop-filter: blur(10px);
+      transition: all 0.25s ease;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    }
+
+    .btn:hover {
+      background: rgba(45, 34, 25, 0.95);
+      border-color: rgba(255, 215, 0, 0.6);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(245, 158, 11, 0.35);
+      color: #ffd700;
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    /* Progress bar */
+    .progress-track {
+      width: 280px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 1rem;
+      z-index: 10;
+    }
+
+    .progress-bar {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #d97706, #fbbf24, #ffffff);
+      transition: width 0.05s linear;
+    }
+  </style>
+</head>
+<body>
+  <!-- Ambient Gold Dust Floating Particles -->
+  <canvas id="ambientCanvas"></canvas>
+
+  <div class="stage">
+    <!-- Lens Flare Flash -->
+    <div id="lensFlare" class="lens-flare"></div>
+
+    <!-- Squircle Frame -->
+    <div id="squircleFrame" class="squircle-frame">
+      <!-- High-res final image layer (fades in seamlessly upon completion) -->
+      <img id="finalLogoImg" class="final-logo-img" src="./logo/atw_logo.jpg" alt="ATW Logo Pure" onerror="this.src='../logo/atw_logo_final.jpg'">
+
+      <!-- Animated SVG Ribbon & Snake Tracing -->
+      <svg id="animSvg" viewBox="0 0 500 500">
+        <defs>
+          <!-- Golden Glow Filter -->
+          <filter id="glowFilter" x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur1" />
+            <feGaussianBlur in="SourceGraphic" stdDeviation="9" result="blur2" />
+            <feMerge>
+              <feMergeNode in="blur2" />
+              <feMergeNode in="blur1" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+
+          <!-- Laser Snake Glow Filter -->
+          <filter id="snakeGlow" x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feComponentTransfer in="blur" result="glow">
+              <feFuncA type="linear" slope="2" />
+            </feComponentTransfer>
+            <feMerge>
+              <feMergeNode in="glow" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+
+          <!-- Metallic Gold Gradient -->
+          <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#fff2a1" />
+            <stop offset="25%" stop-color="#f59e0b" />
+            <stop offset="50%" stop-color="#d97706" />
+            <stop offset="75%" stop-color="#ffd700" />
+            <stop offset="100%" stop-color="#92400e" />
+          </linearGradient>
+
+          <!-- Warm Mocha Bronze Gradient -->
+          <linearGradient id="bronzeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#d97706" />
+            <stop offset="40%" stop-color="#78350f" />
+            <stop offset="70%" stop-color="#b45309" />
+            <stop offset="100%" stop-color="#451a03" />
+          </linearGradient>
+
+          <!-- Chrome White Edge Highlight -->
+          <linearGradient id="whiteEdge" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9" />
+            <stop offset="50%" stop-color="#fef08a" stop-opacity="0.6" />
+            <stop offset="100%" stop-color="#ffffff" stop-opacity="0.1" />
+          </linearGradient>
+        </defs>
+
+        <!-- Base Ghost Shadow Guide Path -->
+        <path id="ghostPath" 
+          d="M 85 350 L 195 125 L 235 125 L 235 155 L 390 155 C 430 155 450 185 435 230 L 400 325 C 390 350 370 365 345 365 C 320 365 305 345 295 320 L 265 245 C 255 220 235 220 220 245 L 180 325 C 170 345 155 350 135 350 Z" 
+          fill="none" 
+          stroke="rgba(255, 215, 0, 0.08)" 
+          stroke-width="18" 
+          stroke-linecap="round" 
+          stroke-linejoin="round"
+        />
+
+        <!-- Secondary Ribbon Weave Guide -->
+        <path id="ghostInner" 
+          d="M 125 345 L 205 175 L 380 175 C 410 175 425 200 410 235 L 375 320 C 365 340 350 345 335 345 C 320 345 310 330 300 310 L 270 235 L 210 235 L 145 345 Z" 
+          fill="none" 
+          stroke="rgba(180, 83, 9, 0.08)" 
+          stroke-width="12" 
+          stroke-linecap="round" 
+          stroke-linejoin="round"
+        />
+
+        <!-- Animated Tracing Stroke (The "Snake" ribbon border) -->
+        <path id="traceOuter" 
+          d="M 85 350 L 195 125 L 235 125 L 235 155 L 390 155 C 430 155 450 185 435 230 L 400 325 C 390 350 370 365 345 365 C 320 365 305 345 295 320 L 265 245 C 255 220 235 220 220 245 L 180 325 C 170 345 155 350 135 350 Z" 
+          fill="none" 
+          stroke="url(#goldGrad)" 
+          stroke-width="14" 
+          stroke-linecap="round" 
+          stroke-linejoin="round"
+          filter="url(#snakeGlow)"
+        />
+
+        <path id="traceInner" 
+          d="M 125 345 L 205 175 L 380 175 C 410 175 425 200 410 235 L 375 320 C 365 340 350 345 335 345 C 320 345 310 330 300 310 L 270 235 L 210 235 L 145 345 Z" 
+          fill="none" 
+          stroke="url(#bronzeGrad)" 
+          stroke-width="9" 
+          stroke-linecap="round" 
+          stroke-linejoin="round"
+        />
+
+        <path id="traceEdge" 
+          d="M 85 350 L 195 125 L 235 125 L 235 155 L 390 155 C 430 155 450 185 435 230 L 400 325 C 390 350 370 365 345 365 C 320 365 305 345 295 320 L 265 245 C 255 220 235 220 220 245 L 180 325 C 170 345 155 350 135 350 Z" 
+          fill="none" 
+          stroke="#ffffff" 
+          stroke-width="2.5" 
+          stroke-linecap="round" 
+          stroke-linejoin="round"
+          opacity="0.8"
+        />
+
+        <!-- The Glowing "Snake Head" Plasma Orb -->
+        <g id="snakeHeadGroup" opacity="0">
+          <circle id="snakeHeadOuter" cx="0" cy="0" r="14" fill="#f59e0b" opacity="0.6" filter="url(#glowFilter)" />
+          <circle id="snakeHeadMid" cx="0" cy="0" r="8" fill="#ffd700" filter="url(#glowFilter)" />
+          <circle id="snakeHeadCore" cx="0" cy="0" r="4" fill="#ffffff" />
+          <!-- Spark tail -->
+          <circle id="spark1" cx="-8" cy="-4" r="2" fill="#fff5aa" opacity="0.8" />
+          <circle id="spark2" cx="-12" cy="5" r="1.5" fill="#f59e0b" opacity="0.7" />
+          <circle id="spark3" cx="-16" cy="-2" r="1.2" fill="#d97706" opacity="0.6" />
+        </g>
+      </svg>
+    </div>
+  </div>
+
+  <div class="progress-track">
+    <div id="progressBar" class="progress-bar"></div>
+  </div>
+
+  <div class="info-panel">
+    <div class="title">A T W</div>
+    <div class="subtitle">Autonomous Dynamic Logo Reveal</div>
+  </div>
+
+  <div class="controls">
+    <button id="replayBtn" class="btn">
+      <span>▶</span> Replay Animation
+    </button>
+    <button id="soundBtn" class="btn">
+      <span>🔊</span> Audio: ON
+    </button>
+    <button id="speedBtn" class="btn">
+      <span>⚡</span> Speed: 1.0x
+    </button>
+  </div>
+
+  <script>
+    // --- 1. Audio Synthesizer (Zero-Lag Web Audio API) ---
+    let audioCtx = null;
+    let soundEnabled = true;
+
+    function initAudio() {
+      if (!audioCtx) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+          audioCtx = new AudioContext();
+        }
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    // Plasma laser spark snake hum
+    function playSnakeLaser(progress) {
+      if (!soundEnabled || !audioCtx) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        // Pitch climbs smoothly as the line assembles the logo
+        osc.frequency.setValueAtTime(140 + progress * 260, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(180 + progress * 320, audioCtx.currentTime + 0.08);
+
+        gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.08);
+      } catch (e) {}
+    }
+
+    // Majestic Final Chord Lock-In
+    function playGrandFinaleChord() {
+      if (!soundEnabled || !audioCtx) return;
+      try {
+        const notes = [220, 277.18, 329.63, 440, 554.37, 659.25]; // A Major cinematic spread
+        const now = audioCtx.currentTime;
+
+        notes.forEach((freq, idx) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = idx % 2 === 0 ? 'sine' : 'triangle';
+          osc.frequency.setValueAtTime(freq, now);
+
+          gain.gain.setValueAtTime(0.08 / (idx + 1), now);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 2.2);
+
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 2.2);
+        });
+
+        // Deep sub-bass pulse
+        const sub = audioCtx.createOscillator();
+        const subGain = audioCtx.createGain();
+        sub.type = 'sine';
+        sub.frequency.setValueAtTime(55, now);
+        sub.frequency.exponentialRampToValueAtTime(40, now + 1.8);
+        subGain.gain.setValueAtTime(0.2, now);
+        subGain.gain.exponentialRampToValueAtTime(0.001, now + 1.8);
+        sub.connect(subGain);
+        subGain.connect(audioCtx.destination);
+        sub.start(now);
+        sub.stop(now + 1.8);
+      } catch (e) {}
+    }
+
+    // --- 2. Ambient Gold Bokeh Background Particles ---
+    const ambCanvas = document.getElementById('ambientCanvas');
+    const ambCtx = ambCanvas.getContext('2d');
+    let particles = [];
+
+    function resizeCanvas() {
+      ambCanvas.width = window.innerWidth;
+      ambCanvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    for (let i = 0; i < 45; i++) {
+      particles.push({
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        r: 1 + Math.random() * 2.5,
+        speedX: (Math.random() - 0.5) * 0.4,
+        speedY: -0.2 - Math.random() * 0.5,
+        alpha: 0.1 + Math.random() * 0.4
+      });
+    }
+
+    function renderAmbient() {
+      ambCtx.clearRect(0, 0, ambCanvas.width, ambCanvas.height);
+      particles.forEach(p => {
+        p.x += p.speedX;
+        p.y += p.speedY;
+        if (p.y < 0) p.y = ambCanvas.height;
+        if (p.x < 0) p.x = ambCanvas.width;
+        if (p.x > ambCanvas.width) p.x = 0;
+
+        ambCtx.fillStyle = `rgba(245, 158, 11, ${p.alpha})`;
+        ambCtx.beginPath();
+        ambCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ambCtx.fill();
+      });
+      requestAnimationFrame(renderAmbient);
+    }
+    renderAmbient();
+
+    // --- 3. Cinematic Logo Assembly Animation Engine ---
+    const traceOuter = document.getElementById('traceOuter');
+    const traceInner = document.getElementById('traceInner');
+    const traceEdge = document.getElementById('traceEdge');
+    const snakeHeadGroup = document.getElementById('snakeHeadGroup');
+    const finalLogoImg = document.getElementById('finalLogoImg');
+    const squircleFrame = document.getElementById('squircleFrame');
+    const lensFlare = document.getElementById('lensFlare');
+    const progressBar = document.getElementById('progressBar');
+
+    const totalLenOuter = traceOuter.getTotalLength();
+    const totalLenInner = traceInner.getTotalLength();
+    const totalLenEdge = traceEdge.getTotalLength();
+
+    let animationId = null;
+    let startTime = null;
+    let speedMultiplier = 1.0;
+    const baseDuration = 3200; // ms for full snake trace
+
+    function setStrokeDash(element, length) {
+      element.style.strokeDasharray = length;
+      element.style.strokeDashoffset = length;
+    }
+
+    function resetAnimation() {
+      if (animationId) cancelAnimationFrame(animationId);
+      startTime = null;
+
+      setStrokeDash(traceOuter, totalLenOuter);
+      setStrokeDash(traceInner, totalLenInner);
+      setStrokeDash(traceEdge, totalLenEdge);
+
+      snakeHeadGroup.setAttribute('opacity', '1');
+      finalLogoImg.classList.remove('revealed');
+      squircleFrame.classList.remove('glow-active');
+      lensFlare.classList.remove('flash');
+      progressBar.style.width = '0%';
+    }
+
+    function step(timestamp) {
+      if (!startTime) startTime = timestamp;
+      const elapsed = (timestamp - startTime) * speedMultiplier;
+      const progress = Math.min(1, elapsed / baseDuration);
+
+      // Ease-in-out for cinematic grace
+      const easeProgress = progress < 0.5 
+        ? 2 * progress * progress 
+        : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+      // Update stroke-dashoffset (creates the snake drawing effect)
+      traceOuter.style.strokeDashoffset = totalLenOuter * (1 - easeProgress);
+      traceInner.style.strokeDashoffset = totalLenInner * (1 - easeProgress);
+      traceEdge.style.strokeDashoffset = totalLenEdge * (1 - easeProgress);
+
+      // Position the glowing snake head at current point of stroke
+      const currentPoint = traceOuter.getPointAtLength(totalLenOuter * easeProgress);
+      snakeHeadGroup.setAttribute('transform', `translate(${currentPoint.x}, ${currentPoint.y})`);
+
+      // Sound ticker
+      if (Math.random() < 0.25 && progress < 0.98) {
+        playSnakeLaser(progress);
+      }
+
+      progressBar.style.width = `${(progress * 100).toFixed(1)}%`;
+
+      if (progress < 1) {
+        animationId = requestAnimationFrame(step);
+      } else {
+        // --- Grand Reveal Climax ---
+        snakeHeadGroup.setAttribute('opacity', '0');
+        
+        // 1. Flash Lens Flare
+        lensFlare.classList.add('flash');
+        setTimeout(() => lensFlare.classList.remove('flash'), 550);
+
+        // 2. Reveal Full 3D Metallic Logo Image
+        finalLogoImg.classList.add('revealed');
+        squircleFrame.classList.add('glow-active');
+
+        // 3. Play triumphant finale chord
+        playGrandFinaleChord();
+      }
+    }
+
+    function startAnimation() {
+      initAudio();
+      resetAnimation();
+      animationId = requestAnimationFrame(step);
+    }
+
+    // --- Controls Bindings ---
+    document.getElementById('replayBtn').addEventListener('click', () => {
+      startAnimation();
+    });
+
+    const soundBtn = document.getElementById('soundBtn');
+    soundBtn.addEventListener('click', () => {
+      soundEnabled = !soundEnabled;
+      soundBtn.innerHTML = soundEnabled ? '<span>🔊</span> Audio: ON' : '<span>🔇</span> Audio: OFF';
+      if (soundEnabled) initAudio();
+    });
+
+    const speedBtn = document.getElementById('speedBtn');
+    const speeds = [1.0, 0.6, 1.5];
+    let speedIdx = 0;
+    speedBtn.addEventListener('click', () => {
+      speedIdx = (speedIdx + 1) % speeds.length;
+      speedMultiplier = speeds[speedIdx];
+      speedBtn.innerHTML = `<span>⚡</span> Speed: ${speedMultiplier.toFixed(1)}x`;
+      startAnimation();
+    });
+
+    // Auto-start on load
+    window.addEventListener('load', () => {
+      setTimeout(startAnimation, 300);
+    });
+
+    // Start audio on first user touch / click anywhere
+    window.addEventListener('click', () => initAudio(), { once: true });
+  </script>
+</body>
+</html>
