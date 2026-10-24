@@ -14,6 +14,7 @@ import {
   filterSheetsForImport 
 } from './utils/excelParser';
 import ATWLogo from './ATWLogo';
+import LogoPageTransition from './LogoPageTransition';
 import './index.css';
 
 function App() {
@@ -52,6 +53,30 @@ function App() {
   const showToast = (message, type = 'info') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 4000);
+  };
+
+  // Seamless Logo Page Transition State
+  const [transitionState, setTransitionState] = useState({
+    isActive: false,
+    targetPage: 'Attendance System',
+    previousPage: 'Student Directory'
+  });
+
+  const navigateToPage = (target) => {
+    if (target === activePage) return;
+    setTransitionState({
+      isActive: true,
+      targetPage: target === 'attendance' ? 'Attendance System' : 'Student Directory',
+      previousPage: activePage === 'attendance' ? 'Attendance System' : 'Student Directory'
+    });
+    // Switch active view at midpoint of transition
+    setTimeout(() => {
+      setActivePage(target);
+    }, 400);
+  };
+
+  const handleTransitionComplete = () => {
+    setTransitionState(prev => ({ ...prev, isActive: false }));
   };
 
   // Reset page when filters change
@@ -348,15 +373,31 @@ function App() {
 
   if (activePage === 'attendance') {
     return (
-      <AttendanceSystem 
-        students={filteredStudents} 
-        onBack={() => setActivePage('directory')} 
-      />
+      <>
+        <LogoPageTransition 
+          isActive={transitionState.isActive}
+          targetPage={transitionState.targetPage}
+          previousPage={transitionState.previousPage}
+          onComplete={handleTransitionComplete}
+        />
+        <AttendanceSystem 
+          students={filteredStudents} 
+          onBack={() => navigateToPage('directory')} 
+        />
+      </>
     );
   }
 
   return (
     <>
+      {/* Luxury Logo Page Transition Overlay */}
+      <LogoPageTransition 
+        isActive={transitionState.isActive}
+        targetPage={transitionState.targetPage}
+        previousPage={transitionState.previousPage}
+        onComplete={handleTransitionComplete}
+      />
+
       {/* Toast Notification */}
       <AnimatePresence>
         {notification && (
@@ -769,7 +810,7 @@ function App() {
       <motion.button 
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        onClick={() => setActivePage('attendance')}
+        onClick={() => navigateToPage('attendance')}
         style={{
           position: 'fixed',
           bottom: '2rem',

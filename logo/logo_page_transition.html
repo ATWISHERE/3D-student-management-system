@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ATW — Professional Logo Page Transition Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;800&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    :root {
+      --color-gold: #ffd700;
+      --color-amber: #f59e0b;
+      --color-bronze: #d97706;
+      --color-brown: #78350f;
+      --color-espresso: #1a120c;
+      --color-obsidian: #080706;
+      --color-white: #ffffff;
+      --color-slate: #94a3b8;
+    }
+
+    body {
+      background: #060505;
+      color: #f8fafc;
+      font-family: 'Montserrat', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Ambient background gradient mesh */
+    .bg-mesh {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: radial-gradient(circle at 80% 20%, rgba(217, 119, 6, 0.08) 0%, transparent 50%),
+                  radial-gradient(circle at 20% 80%, rgba(120, 53, 15, 0.12) 0%, transparent 60%),
+                  #070605;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* Top Studio Navigation Bar */
+    header {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 2.5rem;
+      border-bottom: 1px solid rgba(255, 215, 0, 0.15);
+      background: rgba(10, 8, 6, 0.85);
+      backdrop-filter: blur(16px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+
+    .brand-logo-pill {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 215, 0, 0.3);
+      box-shadow: 0 0 15px rgba(245, 158, 11, 0.3);
+    }
+    .brand-logo-pill img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .brand-title {
+      font-family: 'Cinzel', serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      background: linear-gradient(135deg, #ffffff 0%, #ffd700 60%, #d97706 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-tag {
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      color: var(--color-slate);
+      text-transform: uppercase;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .pill-btn {
+      background: rgba(26, 18, 12, 0.85);
+      border: 1px solid rgba(255, 215, 0, 0.25);
+      color: #f8fafc;
+      padding: 0.45rem 1rem;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: all 0.25s ease;
+    }
+    .pill-btn:hover {
+      border-color: var(--color-gold);
+      box-shadow: 0 0 15px rgba(245, 158, 11, 0.25);
+      color: var(--color-gold);
+    }
+
+    /* Main Workspace Layout */
+    .workspace {
+      position: relative;
+      z-index: 5;
+      display: flex;
+      flex: 1;
+      padding: 1.8rem 2.5rem;
+      gap: 2rem;
+    }
+
+    /* Left Control Sidebar */
+    .controls-panel {
+      width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: rgba(18, 14, 10, 0.85);
+      border: 1px solid rgba(255, 215, 0, 0.18);
+      border-radius: 20px;
+      padding: 1.25rem;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(14px);
+    }
+
+    .card-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--color-gold);
+      margin-bottom: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .style-option {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.65rem 0.85rem;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+      cursor: pointer;
+      margin-bottom: 0.5rem;
+      transition: all 0.2s ease;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .style-option:hover {
+      background: rgba(255, 215, 0, 0.08);
+      border-color: rgba(255, 215, 0, 0.4);
+    }
+    .style-option.active {
+      background: linear-gradient(135deg, rgba(217, 119, 6, 0.25), rgba(245, 158, 11, 0.15));
+      border-color: var(--color-gold);
+      color: var(--color-gold);
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.25);
+    }
+
+    .slider-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      margin-top: 0.5rem;
+    }
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.74rem;
+      color: var(--color-slate);
+    }
+    input[type="range"] {
+      accent-color: var(--color-amber);
+      cursor: pointer;
+    }
+
+    /* Right Preview Stage */
+    .preview-stage {
+      flex: 1;
+      position: relative;
+      background: #0d0a08;
+      border: 1px solid rgba(255, 215, 0, 0.2);
+      border-radius: 24px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8);
+      min-height: 520px;
+    }
+
+    .stage-browser-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.7rem 1.2rem;
+      background: rgba(20, 16, 12, 0.95);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .browser-dots {
+      display: flex;
+      gap: 0.35rem;
+    }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .dot.red { background: #ef4444; }
+    .dot.yellow { background: #f59e0b; }
+    .dot.green { background: #10b981; }
+
+    .browser-url-pill {
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 0.2rem 1.2rem;
+      border-radius: 14px;
+      font-size: 0.72rem;
+      color: #94a3b8;
+    }
+
+    /* Simulated Page Viewports */
+    .stage-viewport {
+      position: relative;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .mock-page {
+      position: absolute;
+      inset: 0;
+      padding: 2.5rem;
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .mock-page.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .page-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.3rem 0.8rem;
+      border-radius: 16px;
+      background: rgba(255, 215, 0, 0.12);
+      border: 1px solid rgba(255, 215, 0, 0.3);
+      color: var(--color-gold);
+      font-size: 0.72rem;
+      font-weight: 700;
+      width: fit-content;
+      margin-bottom: 0.8rem;
+    }
+
+    .page-title {
+      font-family: 'Cinzel', serif;
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 0.5rem;
+    }
+
+    .page-desc {
+      color: #a8a29e;
+      font-size: 0.88rem;
+      max-width: 500px;
+      line-height: 1.5;
+      margin-bottom: 1.8rem;
+    }
+
+    .mock-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+    }
+    .mock-box {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 1.2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+    .mock-num {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: var(--color-gold);
+    }
+    .mock-lbl {
+      font-size: 0.75rem;
+      color: #94a3b8;
+    }
+
+    /* Page Switcher Navigation Strip at Stage Bottom */
+    .stage-nav-strip {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.8rem;
+      padding: 0.9rem;
+      background: rgba(14, 10, 8, 0.9);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      z-index: 10;
+    }
+
+    .nav-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 215, 0, 0.2);
+      color: #e2e8f0;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 0.5rem 1.1rem;
+      border-radius: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: all 0.2s ease;
+    }
+    .nav-btn:hover {
+      background: rgba(255, 215, 0, 0.15);
+      border-color: var(--color-gold);
+      color: var(--color-gold);
+      transform: translateY(-1px);
+    }
+    .nav-btn.active {
+      background: var(--color-gold);
+      color: #000;
+      border-color: var(--color-gold);
+      box-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
+    }
+
+    /* ==========================================================
+       WORLD-CLASS LOGO PAGE TRANSITION OVERLAY ENGINE
+       ========================================================== */
+    #transitionOverlay {
+      position: absolute;
+      inset: 0;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      opacity: 0;
+      overflow: hidden;
+    }
+
+    /* Ambient Glow inside Transition */
+    .trans-glow {
+      position: absolute;
+      width: 480px;
+      height: 480px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(245, 158, 11, 0.22) 0%, rgba(120, 53, 15, 0.08) 50%, transparent 70%);
+      filter: blur(50px);
+      pointer-events: none;
+    }
+
+    /* Central Logo Squircle Medallion */
+    .trans-logo-box {
+      position: relative;
+      width: 140px;
+      height: 140px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform: scale(0.65);
+      opacity: 0;
+    }
+
+    /* Conic Glow Edge Ring */
+    .trans-conic-ring {
+      position: absolute;
+      inset: -3px;
+      border-radius: 36px;
+      background: conic-gradient(from 0deg, #d97706, #ffd700, #ffffff, #d97706, #78350f, #d97706);
+      filter: blur(3px);
+      opacity: 0.9;
+    }
+
+    /* Badge Frame */
+    .trans-badge-frame {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      border-radius: 33px;
+      background: radial-gradient(circle at 35% 30%, #1e1915 0%, #0d0b09 70%, #030303 100%);
+      border: 1.5px solid rgba(255, 215, 0, 0.35);
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.9), inset 0 1px 2px rgba(255, 255, 255, 0.25);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .trans-badge-frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* Light Gleam Sweep */
+    .trans-gleam {
+      position: absolute;
+      top: 0;
+      left: -120%;
+      width: 200%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent 20%, rgba(255, 255, 255, 0.35) 50%, rgba(255, 215, 0, 0.4) 60%, transparent 80%);
+      transform: skewX(-25deg);
+    }
+
+    /* Typography Breadcrumb Label */
+    .trans-text-wrap {
+      margin-top: 1.2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.3rem;
+      text-align: center;
+      opacity: 0;
+      transform: translateY(12px);
+    }
+
+    .trans-brand-sub {
+      font-size: 0.68rem;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      color: var(--color-gold);
+      font-weight: 700;
+      text-shadow: 0 0 12px rgba(245, 158, 11, 0.5);
+    }
+
+    .trans-route-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+    .trans-arrow {
+      color: var(--color-amber);
+      font-size: 0.85rem;
+    }
+
+    .trans-progress-track {
+      width: 160px;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 0.5rem;
+    }
+    .trans-progress-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #d97706, #fbbf24, #ffffff);
+      box-shadow: 0 0 8px rgba(251, 191, 36, 0.8);
+    }
+
+    /* MODE 1: Royal Aperture (Iris Expand & Shrink) */
+    .transition-aperture {
+      background: radial-gradient(circle at 50% 50%, #16100b 0%, #080605 60%, #000000 100%);
+      clip-path: circle(0% at 50% 50%);
+    }
+
+    /* MODE 2: Liquid Obsidian Split Curtain */
+    .curtain-top, .curtain-bottom {
+      position: absolute;
+      left: 0;
+      width: 100%;
+      height: 50%;
+      background: radial-gradient(ellipse at 50% 50%, #18120c 0%, #090705 70%, #030303 100%);
+      border-color: rgba(255, 215, 0, 0.25);
+      z-index: 1;
+      transition: transform 0.45s cubic-bezier(0.77, 0, 0.175, 1);
+    }
+    .curtain-top {
+      top: 0;
+      transform: translateY(-100%);
+      border-bottom: 1.5px solid rgba(255, 215, 0, 0.3);
+    }
+    .curtain-bottom {
+      bottom: 0;
+      transform: translateY(100%);
+      border-top: 1.5px solid rgba(255, 215, 0, 0.3);
+    }
+
+    /* Flash lens flare */
+    .trans-flare {
+      position: absolute;
+      width: 400px;
+      height: 400px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255, 240, 180, 0.8) 0%, rgba(245, 158, 11, 0.3) 35%, transparent 70%);
+      mix-blend-mode: screen;
+      pointer-events: none;
+      opacity: 0;
+      transform: scale(0.3);
+      transition: all 0.4s ease;
+      z-index: 20;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-mesh"></div>
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-logo-pill">
+        <img src="./logo/atw_logo.jpg" alt="ATW Logo" onerror="this.src='../logo/atw_logo_final.jpg'">
+      </div>
+      <div>
+        <div class="brand-title">ATW TRANSITION LAB</div>
+        <div class="brand-tag">Professional UI/UX Logo Motion System</div>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <button id="soundToggle" class="pill-btn">
+        <span>🔊</span> Audio: ON
+      </button>
+      <button id="triggerNowBtn" class="pill-btn" style="border-color: var(--color-gold); color: var(--color-gold);">
+        <span>⚡</span> Trigger Transition
+      </button>
+    </div>
+  </header>
+
+  <!-- Workspace -->
+  <div class="workspace">
+    <!-- Left Controls Panel -->
+    <div class="controls-panel">
+      <!-- Style Selector Card -->
+      <div class="card">
+        <div class="card-title">
+          <span>✨</span> Transition Style
+        </div>
+
+        <div class="style-option active" data-style="aperture">
+          <span>1. Royal Aperture (Iris)</span>
+          <span>👑</span>
+        </div>
+        <div class="style-option" data-style="curtain">
+          <span>2. Obsidian Split Curtain</span>
+          <span>🏛️</span>
+        </div>
+        <div class="style-option" data-style="warp">
+          <span>3. Dimension Fly-Through</span>
+          <span>🚀</span>
+        </div>
+        <div class="style-option" data-style="sweep">
+          <span>4. Minimal Luxury Sweep</span>
+          <span>⚡</span>
+        </div>
+      </div>
+
+      <!-- Transition Timing Control -->
+      <div class="card">
+        <div class="card-title">
+          <span>⏱</span> Motion Timing & Pacing
+        </div>
+        <div class="slider-row">
+          <div class="slider-label">
+            <span>Duration</span>
+            <span id="durationVal">850 ms (Snappy)</span>
+          </div>
+          <input id="durationSlider" type="range" min="450" max="1800" step="50" value="850">
+        </div>
+        <p style="font-size: 0.72rem; color: #78716c; margin-top: 0.8rem; line-height: 1.4;">
+          Professional UI/UX rule: Enterprise transitions stay between 600ms - 900ms to maintain speed without sacrificing brand elegance.
+        </p>
+      </div>
+
+      <!-- Palette Check -->
+      <div class="card">
+        <div class="card-title">
+          <span>🎨</span> Palette Harmonization
+        </div>
+        <div style="display: flex; gap: 0.5rem; margin-top: 0.4rem;">
+          <div style="flex: 1; height: 32px; border-radius: 8px; background: #000000; border: 1px solid rgba(255,255,255,0.1);" title="Black"></div>
+          <div style="flex: 1; height: 32px; border-radius: 8px; background: #1a120c; border: 1px solid rgba(255,255,255,0.1);" title="Obsidian Brown"></div>
+          <div style="flex: 1; height: 32px; border-radius: 8px; background: #78350f;" title="Mocha Bronze"></div>
+          <div style="flex: 1; height: 32px; border-radius: 8px; background: #ffd700;" title="Metallic Gold"></div>
+          <div style="flex: 1; height: 32px; border-radius: 8px; background: #ffffff;" title="Pure White"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Preview Stage -->
+    <div class="preview-stage">
+      <!-- Mock Browser Header -->
+      <div class="stage-browser-bar">
+        <div class="browser-dots">
+          <div class="dot red"></div>
+          <div class="dot yellow"></div>
+          <div class="dot green"></div>
+        </div>
+        <div id="browserUrl" class="browser-url-pill">
+          https://atw-management.app/directory
+        </div>
+        <div style="font-size: 0.7rem; color: #a8a29e;">
+          60 FPS Motion
+        </div>
+      </div>
+
+      <!-- Viewports for Mock Pages -->
+      <div class="stage-viewport">
+        <!-- Page 1: Student Directory -->
+        <div id="page-directory" class="mock-page visible">
+          <div class="page-badge">🏛️ CORE MODULE</div>
+          <h1 class="page-title">Student Directory</h1>
+          <p class="page-desc">Comprehensive database management with excel ingestion, batch grouping, fee tracking, and smart search.</p>
+          <div class="mock-grid">
+            <div class="mock-box">
+              <div class="mock-num">1,248</div>
+              <div class="mock-lbl">Enrolled Students</div>
+            </div>
+            <div class="mock-box">
+              <div class="mock-num">98.4%</div>
+              <div class="mock-lbl">Attendance Rate</div>
+            </div>
+            <div class="mock-box">
+              <div class="mock-num">18</div>
+              <div class="mock-lbl">Active Classes</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Page 2: Attendance System -->
+        <div id="page-attendance" class="mock-page">
+          <div class="page-badge" style="background: rgba(56, 189, 248, 0.15); border-color: #38bdf8; color: #38bdf8;">
+            📋 ATTENDANCE SYSTEM
+          </div>
+          <h1 class="page-title">3D Attendance System</h1>
+          <p class="page-desc">High-speed register marking with dynamic 3D secret shapes, batch processing, and festive rewards.</p>
+          <div class="mock-grid">
+            <div class="mock-box">
+              <div class="mock-num" style="color: #38bdf8;">Class 10-A</div>
+              <div class="mock-lbl">Active Register</div>
+            </div>
+            <div class="mock-box">
+              <div class="mock-num" style="color: #10b981;">34 / 36</div>
+              <div class="mock-lbl">Present Today</div>
+            </div>
+            <div class="mock-box">
+              <div class="mock-num" style="color: #f59e0b;">Cube</div>
+              <div class="mock-lbl">Surprise Shape</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Page 3: Festive Firecrackers -->
+        <div id="page-festive" class="mock-page">
+          <div class="page-badge" style="background: rgba(239, 68, 68, 0.15); border-color: #f87171; color: #f87171;">
+            🎆 FESTIVE CRACKERS
+          </div>
+          <h1 class="page-title">Festive Firecracker Station</h1>
+          <p class="page-desc">Interactive celebration game where students ignite their personal rockets with unique colors and 2D particle bursts.</p>
+          <div class="mock-grid">
+            <div class="mock-box">
+              <div class="mock-num" style="color: #ef4444;">40+</div>
+              <div class="mock-lbl">Curated Colors</div>
+            </div>
+            <div class="mock-box">
+              <div class="mock-num" style="color: #f59e0b;">500+</div>
+              <div class="mock-lbl">Glowing Sparks</div>
+            </div>
+            <div class="mock-box">
+              <div class="mock-num" style="color: #10b981;">60 FPS</div>
+              <div class="mock-lbl">Ultra-Light Engine</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==============================================
+             THE PAGE TRANSITION OVERLAY CANVAS & STAGE
+             ============================================== -->
+        <div id="transitionOverlay">
+          <!-- Split Curtains for Mode 2 -->
+          <div id="curtainTop" class="curtain-top"></div>
+          <div id="curtainBottom" class="curtain-bottom"></div>
+
+          <!-- Ambient Radial Glow -->
+          <div class="trans-glow"></div>
+          <div id="transFlare" class="trans-flare"></div>
+
+          <!-- Logo Squircle Medallion -->
+          <div id="transLogoBox" class="trans-logo-box">
+            <div class="trans-conic-ring"></div>
+            <div class="trans-badge-frame">
+              <img src="./logo/atw_logo.jpg" alt="ATW Logo" onerror="this.src='../logo/atw_logo_final.jpg'">
+              <div id="transGleam" class="trans-gleam"></div>
+            </div>
+          </div>
+
+          <!-- Breadcrumb Typography -->
+          <div id="transTextWrap" class="trans-text-wrap">
+            <div class="trans-brand-sub">ATW ACADEMY</div>
+            <div class="trans-route-title">
+              <span id="transSource" style="color: #94a3b8; font-weight: 500;">Directory</span>
+              <span class="trans-arrow">➔</span>
+              <span id="transDest" style="background: linear-gradient(135deg, #ffffff, #ffd700); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                Attendance
+              </span>
+            </div>
+            <div class="trans-progress-track">
+              <div id="transProgressFill" class="trans-progress-fill"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Stage Page Nav Strip -->
+      <div class="stage-nav-strip">
+        <button class="nav-btn active" data-target="directory">
+          <span>🏛️</span> Student Directory
+        </button>
+        <button class="nav-btn" data-target="attendance">
+          <span>📋</span> Attendance System
+        </button>
+        <button class="nav-btn" data-target="festive">
+          <span>🎆</span> Festive Firecrackers
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- 1. Audio Synthesis (Zero-Lag Web Audio API) ---
+    let audioCtx = null;
+    let soundEnabled = true;
+
+    function initAudio() {
+      if (!audioCtx) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) audioCtx = new AudioContext();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    function playTransitionSwoosh() {
+      if (!soundEnabled || !audioCtx) return;
+      try {
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(140, now);
+        osc.frequency.exponentialRampToValueAtTime(360, now + 0.35);
+
+        gain.gain.setValueAtTime(0.05, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.38);
+      } catch (e) {}
+    }
+
+    function playLockChime() {
+      if (!soundEnabled || !audioCtx) return;
+      try {
+        const now = audioCtx.currentTime;
+        const chime = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        chime.type = 'triangle';
+        chime.frequency.setValueAtTime(659.25, now); // E5 metallic tone
+        gain.gain.setValueAtTime(0.06, now);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
+
+        chime.connect(gain);
+        gain.connect(audioCtx.destination);
+        chime.start(now);
+        chime.stop(now + 0.55);
+      } catch (e) {}
+    }
+
+    // --- 2. State & DOM References ---
+    let currentStyle = 'aperture';
+    let duration = 850;
+    let currentPage = 'directory';
+    let isTransitioning = false;
+
+    const overlay = document.getElementById('transitionOverlay');
+    const transLogoBox = document.getElementById('transLogoBox');
+    const transGleam = document.getElementById('transGleam');
+    const transTextWrap = document.getElementById('transTextWrap');
+    const transSource = document.getElementById('transSource');
+    const transDest = document.getElementById('transDest');
+    const transProgressFill = document.getElementById('transProgressFill');
+    const transFlare = document.getElementById('transFlare');
+    const curtainTop = document.getElementById('curtainTop');
+    const curtainBottom = document.getElementById('curtainBottom');
+    const browserUrl = document.getElementById('browserUrl');
+
+    const pageNames = {
+      directory: 'Student Directory',
+      attendance: 'Attendance System',
+      festive: 'Festive Firecrackers'
+    };
+
+    // --- 3. Execute Transition Engine ---
+    function performTransition(targetPage) {
+      if (isTransitioning || targetPage === currentPage) return;
+      isTransitioning = true;
+      initAudio();
+
+      const sourceName = pageNames[currentPage];
+      const targetName = pageNames[targetPage];
+
+      transSource.textContent = sourceName;
+      transDest.textContent = targetName;
+      browserUrl.textContent = `https://atw-management.app/${targetPage}`;
+
+      // Update Nav Buttons
+      document.querySelectorAll('.nav-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.target === targetPage);
+      });
+
+      playTransitionSwoosh();
+
+      // Reset transforms
+      overlay.style.pointerEvents = 'all';
+      overlay.style.opacity = '1';
+      transProgressFill.style.transition = `width ${duration * 0.7}ms cubic-bezier(0.16, 1, 0.3, 1)`;
+      transProgressFill.style.width = '0%';
+
+      // Apply Style-Specific Entrance
+      if (currentStyle === 'aperture') {
+        overlay.style.background = 'radial-gradient(circle at 50% 50%, #16100b 0%, #080605 65%, #000000 100%)';
+        overlay.style.transition = `clip-path ${duration * 0.4}ms cubic-bezier(0.16, 1, 0.3, 1)`;
+        overlay.style.clipPath = 'circle(120% at 50% 50%)';
+      } else if (currentStyle === 'curtain') {
+        overlay.style.background = 'transparent';
+        overlay.style.clipPath = 'none';
+        curtainTop.style.transform = 'translateY(0%)';
+        curtainBottom.style.transform = 'translateY(0%)';
+      } else if (currentStyle === 'warp') {
+        overlay.style.background = '#060505';
+        overlay.style.clipPath = 'none';
+        overlay.style.transition = `opacity ${duration * 0.3}ms ease`;
+      } else if (currentStyle === 'sweep') {
+        overlay.style.background = 'linear-gradient(135deg, #18120c 0%, #090705 100%)';
+        overlay.style.clipPath = 'polygon(0 0, 100% 0, 100% 100%, 0 100%)';
+      }
+
+      // 1. Entrance of Logo & Breadcrumb
+      setTimeout(() => {
+        transLogoBox.style.transition = `transform ${duration * 0.4}ms cubic-bezier(0.16, 1, 0.3, 1), opacity ${duration * 0.3}ms ease`;
+        transLogoBox.style.transform = currentStyle === 'warp' ? 'scale(1.2)' : 'scale(1)';
+        transLogoBox.style.opacity = '1';
+
+        transTextWrap.style.transition = `transform ${duration * 0.35}ms ease, opacity ${duration * 0.35}ms ease`;
+        transTextWrap.style.transform = 'translateY(0)';
+        transTextWrap.style.opacity = '1';
+
+        transProgressFill.style.width = '100%';
+
+        // Shimmer gleam across ribbon logo
+        transGleam.style.transition = 'transform 0.6s ease';
+        transGleam.style.transform = 'translateX(120%) skewX(-25deg)';
+
+        setTimeout(() => playLockChime(), duration * 0.28);
+      }, 50);
+
+      // 2. Midpoint: Switch actual visible page content behind curtain
+      setTimeout(() => {
+        document.querySelectorAll('.mock-page').forEach(p => p.classList.remove('visible'));
+        document.getElementById(`page-${targetPage}`).classList.add('visible');
+        currentPage = targetPage;
+
+        // Lens Flare Burst
+        transFlare.style.opacity = '0.9';
+        transFlare.style.transform = 'scale(1.3)';
+        setTimeout(() => {
+          transFlare.style.opacity = '0';
+          transFlare.style.transform = 'scale(0.3)';
+        }, 300);
+      }, duration * 0.5);
+
+      // 3. Exit Reveal
+      setTimeout(() => {
+        if (currentStyle === 'aperture') {
+          overlay.style.clipPath = 'circle(0% at 50% 50%)';
+        } else if (currentStyle === 'curtain') {
+          curtainTop.style.transform = 'translateY(-100%)';
+          curtainBottom.style.transform = 'translateY(100%)';
+        } else if (currentStyle === 'warp') {
+          transLogoBox.style.transform = 'scale(3.5)';
+          transLogoBox.style.opacity = '0';
+          overlay.style.opacity = '0';
+        } else if (currentStyle === 'sweep') {
+          overlay.style.opacity = '0';
+        }
+
+        transTextWrap.style.opacity = '0';
+        transLogoBox.style.opacity = '0';
+      }, duration * 0.72);
+
+      // 4. Complete
+      setTimeout(() => {
+        overlay.style.pointerEvents = 'none';
+        overlay.style.opacity = '0';
+        overlay.style.clipPath = 'circle(0% at 50% 50%)';
+        transLogoBox.style.transform = 'scale(0.65)';
+        transTextWrap.style.transform = 'translateY(12px)';
+        transGleam.style.transform = 'translateX(-120%) skewX(-25deg)';
+        isTransitioning = false;
+      }, duration + 50);
+    }
+
+    // --- 4. Controls UI Event Listeners ---
+    document.querySelectorAll('.style-option').forEach(opt => {
+      opt.addEventListener('click', () => {
+        document.querySelectorAll('.style-option').forEach(o => o.classList.remove('active'));
+        opt.classList.add('active');
+        currentStyle = opt.dataset.style;
+        // Trigger preview transition to current or next page
+        const next = currentPage === 'directory' ? 'attendance' : 'directory';
+        performTransition(next);
+      });
+    });
+
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        performTransition(btn.dataset.target);
+      });
+    });
+
+    const durationSlider = document.getElementById('durationSlider');
+    const durationVal = document.getElementById('durationVal');
+    durationSlider.addEventListener('input', (e) => {
+      duration = parseInt(e.target.value);
+      durationVal.textContent = `${duration} ms (${duration < 700 ? 'Ultra-Fast' : (duration < 1100 ? 'Balanced' : 'Cinematic')})`;
+    });
+
+    document.getElementById('triggerNowBtn').addEventListener('click', () => {
+      const order = ['directory', 'attendance', 'festive'];
+      const nextIdx = (order.indexOf(currentPage) + 1) % order.length;
+      performTransition(order[nextIdx]);
+    });
+
+    const soundToggle = document.getElementById('soundToggle');
+    soundToggle.addEventListener('click', () => {
+      soundEnabled = !soundEnabled;
+      soundToggle.innerHTML = soundEnabled ? '<span>🔊</span> Audio: ON' : '<span>🔇</span> Audio: OFF';
+      if (soundEnabled) initAudio();
+    });
+
+    // Auto-initialize audio on user gesture
+    window.addEventListener('click', () => initAudio(), { once: true });
+  </script>
+</body>
+</html>
