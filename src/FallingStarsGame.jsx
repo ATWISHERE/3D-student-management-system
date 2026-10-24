@@ -301,6 +301,240 @@ class CanvasCelebrationBanner {
   }
 }
 
+// Animated Character Component: Boy who bends down and ignites the firecracker bomb
+function BoyBombIgniter({ action, activeStudent, studentColor }) {
+  const isBending = action === 'bending' || action === 'igniting';
+  const isIgniting = action === 'igniting';
+  const isWatching = action === 'watching';
+
+  return (
+    <div style={{
+      position: 'absolute',
+      bottom: '0.8rem',
+      right: '1rem',
+      width: '240px',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      zIndex: 25,
+      userSelect: 'none'
+    }}>
+      {/* Speech Dialogue Bubble */}
+      <div style={{
+        background: 'rgba(15, 20, 38, 0.94)',
+        backdropFilter: 'blur(16px)',
+        border: '1px solid rgba(255, 255, 255, 0.18)',
+        borderRadius: '16px',
+        padding: '0.45rem 0.75rem',
+        fontSize: '0.74rem',
+        color: '#f8fafc',
+        textAlign: 'center',
+        lineHeight: 1.35,
+        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
+        marginBottom: '0.4rem',
+        maxWidth: '220px',
+        transition: 'all 0.25s ease'
+      }}>
+        {isBending || isIgniting ? (
+          <span style={{ color: '#ffd700', fontWeight: 700 }}>
+            🔥 Lighting {activeStudent ? activeStudent.Name : ''}'s bomb!
+          </span>
+        ) : isWatching ? (
+          <span style={{ color: '#38bdf8', fontWeight: 700 }}>
+            🚀 Go {activeStudent ? activeStudent.Name : ''}! Look up!
+          </span>
+        ) : (
+          <span>👉 <b>Tap or touch your name</b> to ignite your rocket!</span>
+        )}
+      </div>
+
+      {/* Interactive Animated SVG Scene with Boy Bending and Igniting Firecracker Bomb */}
+      <svg width="210" height="175" viewBox="0 0 210 175" fill="none" style={{ overflow: 'visible' }}>
+        <defs>
+          <filter id="emberGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+
+        {/* Ground Surface Shadow */}
+        <ellipse cx="105" cy="165" rx="90" ry="10" fill="rgba(0,0,0,0.5)" />
+
+        {/* Ground Firecracker Bomb (Anar / Pot Rocket) */}
+        <g id="firecrackerBomb">
+          <ellipse cx="60" cy="164" rx="22" ry="6" fill="rgba(0,0,0,0.6)" />
+          <path 
+            d="M 45 162 L 53 130 L 67 130 L 75 162 Z" 
+            fill={studentColor ? studentColor.hex : "#dc2626"} 
+            stroke="#fbbf24" 
+            strokeWidth="1.5" 
+          />
+          <path d="M 48 152 L 72 152" stroke="#fbbf24" strokeWidth="2" />
+          <path d="M 51 140 L 69 140" stroke="#fef08a" strokeWidth="1.5" />
+          <polygon points="56,130 60,118 64,130" fill="#f59e0b" />
+          <path d="M 60 120 Q 56 112 50 114" stroke="#e2e8f0" strokeWidth="2" strokeLinecap="round" fill="none" />
+
+          {/* Sizzling Fuse Flame & Sparks when Igniting */}
+          {isIgniting && (
+            <g transform="translate(50, 114)">
+              <circle cx="0" cy="0" r="4.5" fill="#ffffff" filter="url(#emberGlow)" />
+              <circle cx="0" cy="0" r="7" fill="#ffaa00" opacity="0.8" />
+              <circle cx="-3" cy="-4" r="1.5" fill="#ffd700" />
+              <circle cx="4" cy="-5" r="1.5" fill="#ff4400" />
+              <circle cx="-5" cy="2" r="1" fill="#ffff00" />
+              <circle cx="3" cy="4" r="1.5" fill="#ff7700" />
+            </g>
+          )}
+        </g>
+
+        {/* Animated Boy Character */}
+        <g 
+          id="boyCharacter"
+          style={{
+            transformOrigin: '120px 160px',
+            transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+            transform: isBending 
+              ? 'translate(-14px, 4px) scale(0.98)' 
+              : (isWatching ? 'translate(8px, -2px) scale(1.02)' : 'none')
+          }}
+        >
+          {/* Legs & Shoes */}
+          <g id="boyLegs">
+            <path 
+              d={isBending ? "M 112 138 L 102 152 L 96 166" : "M 114 136 L 110 152 L 108 166"} 
+              stroke="#1e293b" 
+              strokeWidth="9" 
+              strokeLinecap="round" 
+              fill="none" 
+            />
+            <ellipse cx={isBending ? "93" : "105"} cy="166" rx="8" ry="4.5" fill="#0f172a" />
+
+            <path 
+              d={isBending ? "M 126 138 L 132 152 L 136 166" : "M 128 136 L 130 152 L 130 166"} 
+              stroke="#1e293b" 
+              strokeWidth="9" 
+              strokeLinecap="round" 
+              fill="none" 
+            />
+            <ellipse cx={isBending ? "138" : "131"} cy="166" rx="8" ry="4.5" fill="#0f172a" />
+          </g>
+
+          {/* Upper Body (Bends forward when lighting bomb!) */}
+          <g 
+            id="boyUpperBody"
+            style={{
+              transformOrigin: '120px 136px',
+              transition: 'transform 0.28s cubic-bezier(0.34, 1.3, 0.64, 1)',
+              transform: isBending 
+                ? 'rotate(34deg) translate(-2px, 2px)' 
+                : (isWatching ? 'rotate(-12deg) translate(2px, -3px)' : 'rotate(0deg)')
+            }}
+          >
+            {/* Torso / Festive Kurta */}
+            <path d="M 108 100 L 132 100 L 130 138 L 110 138 Z" fill="#2563eb" stroke="#1d4ed8" strokeWidth="1" />
+            <path d="M 116 100 L 120 114 L 124 100" stroke="#f59e0b" strokeWidth="2.5" fill="none" />
+
+            {/* Left Arm (Balancing arm) */}
+            <path 
+              d={isBending ? "M 130 106 L 144 116 L 140 128" : (isWatching ? "M 130 106 L 145 92 L 152 78" : "M 130 106 L 140 120 L 138 132")} 
+              stroke="#2563eb" 
+              strokeWidth="7" 
+              strokeLinecap="round" 
+              fill="none" 
+            />
+            <circle cx={isBending ? "140" : (isWatching ? "152" : "138")} cy={isBending ? "128" : (isWatching ? "78" : "132")} r="4" fill="#fcd34d" />
+
+            {/* Head & Face */}
+            <g 
+              id="boyHead"
+              style={{
+                transformOrigin: '120px 92px',
+                transition: 'transform 0.28s ease',
+                transform: isBending 
+                  ? 'rotate(8deg) translate(-3px, 2px)' 
+                  : (isWatching ? 'rotate(-20deg) translate(0px, -4px)' : 'rotate(0deg)')
+              }}
+            >
+              <rect x="117" y="90" width="6" height="12" fill="#fcd34d" />
+              <circle cx="120" cy="80" r="15" fill="#fcd34d" />
+              <path d="M 105 76 Q 120 60 135 76 Q 128 66 120 66 Q 112 66 105 76 Z" fill="#b91c1c" />
+              <polygon points="120,58 123,66 117,66" fill="#f59e0b" />
+
+              {/* Eyes */}
+              {isWatching ? (
+                <>
+                  <circle cx="115" cy="76" r="2.2" fill="#0f172a" />
+                  <circle cx="125" cy="76" r="2.2" fill="#0f172a" />
+                  <circle cx="116" cy="75" r="0.8" fill="#ffffff" />
+                  <circle cx="126" cy="75" r="0.8" fill="#ffffff" />
+                </>
+              ) : (
+                <>
+                  <circle cx={isBending ? "114" : "115"} cy="78" r="2" fill="#0f172a" />
+                  <circle cx={isBending ? "123" : "124"} cy="78" r="2" fill="#0f172a" />
+                </>
+              )}
+
+              {/* Smile */}
+              <path 
+                d={isWatching ? "M 115 85 Q 120 90 125 85" : "M 116 84 Q 120 88 124 84"} 
+                stroke="#991b1b" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                fill="none" 
+              />
+            </g>
+
+            {/* Right Arm: Holding the Incense Stick (Bends down to touch fuse!) */}
+            <g id="igniterArm">
+              <path 
+                d={isBending 
+                  ? "M 110 106 L 90 122 L 68 128" 
+                  : (isWatching ? "M 110 106 L 95 94 L 85 82" : "M 110 106 L 96 118 L 86 130")
+                } 
+                stroke="#2563eb" 
+                strokeWidth="7" 
+                strokeLinecap="round" 
+                fill="none" 
+              />
+              <circle cx={isBending ? "66" : (isWatching ? "85" : "85")} cy={isBending ? "128" : (isWatching ? "82" : "130")} r="4" fill="#fcd34d" />
+
+              {/* Incense Stick reaching down to touch the bomb fuse */}
+              <line 
+                x1={isBending ? "66" : (isWatching ? "85" : "85")} 
+                y1={isBending ? "128" : (isWatching ? "82" : "130")} 
+                x2={isBending ? "52" : (isWatching ? "75" : "66")} 
+                y2={isBending ? "116" : (isWatching ? "68" : "132")} 
+                stroke="#78350f" 
+                strokeWidth="2.5" 
+                strokeLinecap="round" 
+              />
+
+              {/* Glowing Ember Spark at the tip of the stick */}
+              <circle 
+                cx={isBending ? "51" : (isWatching ? "74" : "65")} 
+                cy={isBending ? "115" : (isWatching ? "67" : "132")} 
+                r={isBending ? "4.5" : "3"} 
+                fill="#ff5500" 
+                filter="url(#emberGlow)" 
+              />
+              <circle 
+                cx={isBending ? "51" : (isWatching ? "74" : "65")} 
+                cy={isBending ? "115" : (isWatching ? "67" : "132")} 
+                r="1.8" 
+                fill="#ffffaa" 
+              />
+            </g>
+          </g>
+        </g>
+      </svg>
+    </div>
+  );
+}
+
 export default function FallingStarsGame({ 
   students = [], 
   attendanceData = {}, 
@@ -324,7 +558,7 @@ export default function FallingStarsGame({
   const bannersRef = useRef([]);
 
   // UI state
-  const [isLaunching, setIsLaunching] = useState(false);
+  const [boyAction, setBoyAction] = useState('idle'); // 'idle' | 'bending' | 'igniting' | 'watching'
   const [activeStudent, setActiveStudent] = useState(null);
   const [searchFilter, setSearchFilter] = useState('');
   const [filterMode, setFilterMode] = useState('unmarked'); // 'all', 'unmarked', 'present', 'absent'
@@ -429,49 +663,60 @@ export default function FallingStarsGame({
     const studentClass = getStudentClass(student);
     const color = getStudentFirecrackerColor(index);
 
-    // Launch coordinates: From bottom-right shack
-    const startX = canvas.width - 150;
-    const startY = canvas.height - 110;
-
-    // Target apex: Random pleasant sky location in top-middle area
-    const targetX = canvas.width * 0.12 + Math.random() * (canvas.width * 0.65);
-    const targetY = canvas.height * 0.14 + Math.random() * (canvas.height * 0.38);
-
-    // Audio: Rocket ascending whistle
-    playFirecrackerLaunch();
-
-    setIsLaunching(true);
+    // 1. Boy bends down towards the bomb
+    setBoyAction('bending');
     setActiveStudent(student);
 
-    const onApex = (apexX, apexY, rocketColor, rocketStudent) => {
-      setIsLaunching(false);
-      setActiveStudent(null);
+    // 2. Fuse touches and ignites
+    setTimeout(() => {
+      setBoyAction('igniting');
+      playFirecrackerLaunch();
 
-      // Audio: Deep boom & crackle
-      playFirecrackerBurst();
+      // Launch coordinates: From the bomb on ground
+      const startX = canvas.width - 150;
+      const startY = canvas.height - 110;
 
-      // Shockwave flash ring
-      shockwavesRef.current.push(new CanvasShockwave(apexX, apexY, rocketColor.hex));
+      // Target apex: Random pleasant sky location
+      const targetX = canvas.width * 0.12 + Math.random() * (canvas.width * 0.65);
+      const targetY = canvas.height * 0.14 + Math.random() * (canvas.height * 0.38);
 
-      // 500+ High-Density Sparks! (Eco mode uses ~240, standard uses ~520)
-      const sparkCount = ecoMode ? 240 : 520;
-      for (let i = 0; i < sparkCount; i++) {
-        // Mix: 65% primary sparks, 25% willow weeping branches, 10% cracklers
-        const rand = Math.random();
-        const type = rand < 0.65 ? 'spark' : (rand < 0.90 ? 'willow' : 'crackler');
-        sparksRef.current.push(new CanvasSpark(apexX, apexY, rocketColor.hex, type));
-      }
+      // 3. Boy steps back watching up as rocket ascends
+      setTimeout(() => {
+        setBoyAction('watching');
+      }, 160);
 
-      // Radiant Celebration Banner
-      bannersRef.current.push(new CanvasCelebrationBanner(apexX, apexY, rocketStudent, rocketColor));
+      const onApex = (apexX, apexY, rocketColor, rocketStudent) => {
+        // Audio: Deep boom & crackle
+        playFirecrackerBurst();
 
-      // Mark Present
-      if (toggleAttendance) {
-        toggleAttendance(rocketStudent.Name, 'P', studentClass);
-      }
-    };
+        // Shockwave flash ring
+        shockwavesRef.current.push(new CanvasShockwave(apexX, apexY, rocketColor.hex));
 
-    rocketsRef.current.push(new CanvasRocket(startX, startY, targetX, targetY, color, student, onApex));
+        // 500+ High-Density Sparks! (Eco mode uses ~240, standard uses ~520)
+        const sparkCount = ecoMode ? 240 : 520;
+        for (let i = 0; i < sparkCount; i++) {
+          const rand = Math.random();
+          const type = rand < 0.65 ? 'spark' : (rand < 0.90 ? 'willow' : 'crackler');
+          sparksRef.current.push(new CanvasSpark(apexX, apexY, rocketColor.hex, type));
+        }
+
+        // Radiant Celebration Banner
+        bannersRef.current.push(new CanvasCelebrationBanner(apexX, apexY, rocketStudent, rocketColor));
+
+        // Mark Present
+        if (toggleAttendance) {
+          toggleAttendance(rocketStudent.Name, 'P', studentClass);
+        }
+
+        // Return boy to idle after fireworks burst settles
+        setTimeout(() => {
+          setBoyAction('idle');
+          setActiveStudent(null);
+        }, 1800);
+      };
+
+      rocketsRef.current.push(new CanvasRocket(startX, startY, targetX, targetY, color, student, onApex));
+    }, 280);
   };
 
   // Launch Next Unmarked Student
@@ -530,7 +775,7 @@ export default function FallingStarsGame({
         }} 
       />
 
-      {/* Top Floating Badge */}
+      {/* Top Floating Badge - Clean & Elegant */}
       <div style={{
         position: 'absolute',
         top: '0.8rem',
@@ -538,22 +783,20 @@ export default function FallingStarsGame({
         transform: 'translateX(-50%)',
         display: 'flex',
         alignItems: 'center',
-        gap: '0.75rem',
+        gap: '0.5rem',
         background: 'rgba(10, 15, 35, 0.88)',
         backdropFilter: 'blur(14px)',
         border: '1px solid rgba(255, 255, 255, 0.15)',
         padding: '0.35rem 1.25rem',
         borderRadius: '30px',
         color: '#f8fafc',
-        fontSize: '0.82rem',
+        fontSize: '0.85rem',
         fontFamily: 'Montserrat, sans-serif',
         zIndex: 20,
         boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
         pointerEvents: 'none'
       }}>
-        <span>🎆 <b>Festive Firecrackers • 2D Ultra Burst Engine</b></span>
-        <span style={{ color: '#94a3b8' }}>•</span>
-        <span style={{ color: '#ffd700' }}>500+ Glowing Sparks with Additive Blending</span>
+        <span>🎆 <b>Festive Firecrackers</b></span>
       </div>
 
       {/* Persistent Night Sky Lanterns for All Marked Students */}
@@ -610,96 +853,12 @@ export default function FallingStarsGame({
         ))}
       </div>
 
-      {/* Bottom-Right Firecracker Shack & Boy Master */}
-      <div style={{
-        position: 'absolute',
-        bottom: '0.8rem',
-        right: '1rem',
-        width: '230px',
-        background: 'rgba(15, 20, 38, 0.92)',
-        backdropFilter: 'blur(16px)',
-        border: '1px solid rgba(255, 255, 255, 0.18)',
-        borderRadius: '20px',
-        padding: '0.8rem',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: '0.5rem',
-        zIndex: 25,
-        boxShadow: '0 8px 30px rgba(0, 0, 0, 0.6)',
-        userSelect: 'none'
-      }}>
-        {/* Shack Canopy Header */}
-        <div style={{
-          width: '100%',
-          background: 'linear-gradient(135deg, #b91c1c, #991b1b)',
-          color: '#fef08a',
-          fontSize: '0.74rem',
-          fontWeight: 800,
-          textAlign: 'center',
-          padding: '0.3rem',
-          borderRadius: '12px',
-          letterSpacing: '0.05em',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '0.3rem'
-        }}>
-          <span>🏮</span>
-          <span>FIRECRACKER STATION</span>
-        </div>
-
-        {/* Boy Master Avatar with Sparkler */}
-        <div style={{ position: 'relative', margin: '0.3rem 0' }}>
-          <div style={{
-            width: '68px',
-            height: '68px',
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, #f59e0b 0%, #78350f 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '2.2rem',
-            boxShadow: isLaunching ? '0 0 25px #f59e0b' : '0 0 12px rgba(245, 158, 11, 0.4)',
-            transition: 'box-shadow 0.2s ease',
-            transform: isLaunching ? 'scale(1.08)' : 'scale(1)'
-          }}>
-            👦
-          </div>
-          {/* Active Sparkler Bulb */}
-          <div style={{
-            position: 'absolute',
-            top: '-2px',
-            right: '-2px',
-            width: '16px',
-            height: '16px',
-            borderRadius: '50%',
-            background: isLaunching && activeStudent ? getStudentFirecrackerColor(students.findIndex(s => s.Name === activeStudent.Name)).hex : '#ffd700',
-            boxShadow: '0 0 10px #ffffff',
-            animation: 'pulseSpark 0.5s infinite alternate'
-          }} />
-        </div>
-
-        {/* Speech Dialogue Bubble */}
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.08)',
-          border: '1px solid rgba(255, 255, 255, 0.14)',
-          borderRadius: '12px',
-          padding: '0.45rem 0.6rem',
-          fontSize: '0.74rem',
-          color: '#e2e8f0',
-          textAlign: 'center',
-          lineHeight: 1.35
-        }}>
-          {isLaunching && activeStudent ? (
-            <span style={{ color: '#ffd700', fontWeight: 700 }}>
-              🚀 Firing {activeStudent.Name}'s Rocket!
-            </span>
-          ) : (
-            <span>👋 "Salute your name to ignite your festival rocket!"</span>
-          )}
-        </div>
-      </div>
+      {/* Bottom-Right Animated Boy who bends down and ignites the firecracker bomb */}
+      <BoyBombIgniter 
+        action={boyAction} 
+        activeStudent={activeStudent} 
+        studentColor={activeStudent ? getStudentFirecrackerColor(students.findIndex(s => s.Name === activeStudent.Name)) : null} 
+      />
 
       {/* Bottom Student Palette & Launcher Dock */}
       <div style={{
