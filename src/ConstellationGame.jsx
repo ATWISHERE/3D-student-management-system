@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 
 import { SHAPES } from './shapes';
+import { playCompleteSound, playClickSound } from './utils/soundEffects';
 
 const COLORS = [
   '#00ffff', // Cyan
@@ -327,12 +328,32 @@ export default function ConstellationGame({
   onToggleAttendance, 
   markRemainingAbsent,
   markAllPresent,
-  resetAttendance
+  resetAttendance,
+  ecoMode: propEcoMode,
+  onToggleEcoMode
 }) {
   const toggleAttendance = setAttendanceStatus || onToggleAttendance;
   const [isGathered, setIsGathered] = useState(false);
   const [selectedShape, setSelectedShape] = useState(() => Object.keys(SHAPES)[0]);
-  const [ecoMode, setEcoMode] = useState(false);
+  const [localEcoMode, setLocalEcoMode] = useState(() => {
+    const saved = localStorage.getItem('ecoMode');
+    return saved !== null ? saved === 'true' : true; // Eco mode ON by default!
+  });
+  const ecoMode = propEcoMode !== undefined ? propEcoMode : localEcoMode;
+
+  const toggleEcoMode = () => {
+    if (onToggleEcoMode) {
+      onToggleEcoMode();
+    } else {
+      setLocalEcoMode(prev => {
+        const next = !prev;
+        localStorage.setItem('ecoMode', String(next));
+        return next;
+      });
+    }
+  };
+
+  const [isControlsMinimized, setIsControlsMinimized] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
   const shapeKeys = Object.keys(SHAPES);
 
@@ -356,12 +377,26 @@ export default function ConstellationGame({
     return { present: p, absent: a, unmarked: u, total: students.length };
   }, [students, attendanceData, selectedClass, selectedDate]);
 
+  // Auto-reset visual constellation state when class changes (WITHOUT deleting any marked attendance!)
+  useEffect(() => {
+    setIsFinished(false);
+    setIsGathered(false);
+  }, [selectedClass, selectedClasses]);
+
   const handleComplete = () => {
     if (markRemainingAbsent) {
       markRemainingAbsent();
     }
     setIsFinished(true);
     setIsGathered(false);
+    playCompleteSound();
+  };
+
+  const handleResume = () => {
+    // Uncomplete/Resume attendance: hides constellation lines and re-scatters stars
+    // PRESERVES all existing marked attendance!
+    setIsFinished(false);
+    playClickSound();
   };
 
   const handleReset = () => {
@@ -370,12 +405,14 @@ export default function ConstellationGame({
     }
     setIsFinished(false);
     setIsGathered(false);
+    playClickSound();
   };
 
   const handleMarkAllPresent = () => {
     if (markAllPresent) {
       markAllPresent();
     }
+    playCompleteSound();
   };
 
   const positions = useMemo(() => {
@@ -446,42 +483,26 @@ export default function ConstellationGame({
       absentTarget[studentIdx] = new THREE.Vector3(x * 12, y * 12, 0);
     });
 
-    absentIndices.forEach(studentIdx => {
-      const rand1 = Math.abs(Math.sin(studentIdx * 33.333));
-      const rand2 = Math.abs(Math.sin(studentIdx * 44.444));
-      const rand3 = Math.abs(Math.sin(studentIdx * 55.555));
+    // Position absent students in a single clean column on the right side with equal, uniform distance
+    const rowSpacing = 2.2;
+    const colSpacing = 3.5;
+    const maxRows = 9;
 
-      const side = (studentIdx % 2 === 0 ? 1 : -1);
-      const absentX = (18 + rand1 * 10) * side;
-      const absentY = -12 + (rand2 * 24);
-      const absentZ = -8 + (rand3 * 12);
-      target[studentIdx] = new THREE.Vector3(absentX, absentY, absentZ);
-      absentTarget[studentIdx] = new THREE.Vector3(absentX, absentY, absentZ);
+    absentIndices.forEach((studentIdx, rank) => {
+      const col = Math.floor(rank / maxRows);
+      const row = rank % maxRows;
+      
+      const countInThisCol = Math.min(maxRows, absentIndices.length - col * maxRows);
+      const startY = ((countInThisCol - 1) * rowSpacing) / 2;
+      
+      const absentX = 16.5 + (col * colSpacing);
+      const absentY = startY - (row * rowSpacing);
+      const absentZ = 0;
+
+      const pos = new THREE.Vector3(absentX, absentY, absentZ);
+      target[studentIdx] = pos;
+      absentTarget[studentIdx] = pos.clone();
     });
-
-    // Enforce healthy distance for absent students
-    for (let iter = 0; iter < 20; iter++) {
-      for (let i = 0; i < absentIndices.length; i++) {
-        for (let j = i + 1; j < absentIndices.length; j++) {
-          const idx1 = absentIndices[i];
-          const idx2 = absentIndices[j];
-          const p1 = target[idx1];
-          const p2 = target[idx2];
-          if (p1 && p2) {
-            const dist = p1.distanceTo(p2);
-            const minDistance = 4.5;
-            if (dist < minDistance && dist > 0.001) {
-              const overlap = minDistance - dist;
-              const pushDir = new THREE.Vector3().subVectors(p1, p2).normalize().multiplyScalar(overlap * 0.5);
-              p1.add(pushDir);
-              p2.sub(pushDir);
-              absentTarget[idx1].copy(p1);
-              absentTarget[idx2].copy(p2);
-            }
-          }
-        }
-      }
-    }
     
     return { initial, target, absentTarget, grid };
   }, [studentKeysStr, attendanceData, selectedClass, selectedDate, selectedShape, students]);
@@ -489,28 +510,32 @@ export default function ConstellationGame({
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', background: 'linear-gradient(to bottom, #090e1f, #121e3a)' }}>
       
-      {/* Top Floating Attendance Stats Badge */}
+      {/* Top Floating Attendance Stats Badge - Single Line */}
       <div style={{
         position: 'absolute',
-        top: '1rem',
+        top: '0.8rem',
         left: '50%',
         transform: 'translateX(-50%)',
         display: 'flex',
         alignItems: 'center',
-        flexWrap: 'wrap',
+        flexWrap: 'nowrap',
+        whiteSpace: 'nowrap',
         justifyContent: 'center',
-        gap: '0.8rem',
-        background: 'rgba(10, 15, 35, 0.75)',
-        padding: '0.45rem 1.4rem',
+        gap: '0.65rem',
+        background: 'rgba(10, 15, 35, 0.85)',
+        padding: '0.3rem 1.1rem',
         borderRadius: '30px',
         backdropFilter: 'blur(14px)',
         border: '1px solid rgba(255, 255, 255, 0.15)',
         zIndex: 15,
         boxShadow: '0 6px 25px rgba(0, 0, 0, 0.45)',
         color: '#f8fafc',
-        fontSize: '0.85rem',
+        fontSize: '0.82rem',
         fontFamily: 'Montserrat, sans-serif',
-        pointerEvents: 'none'
+        pointerEvents: 'none',
+        maxWidth: '94vw',
+        overflowX: 'auto',
+        scrollbarWidth: 'none'
       }}>
         <span>Total: <strong>{stats.total}</strong></span>
         <span style={{ color: '#10b981', fontWeight: 600 }}>● Present: {stats.present}</span>
@@ -521,22 +546,26 @@ export default function ConstellationGame({
             color: '#38bdf8', 
             fontWeight: 700, 
             background: 'rgba(56, 189, 248, 0.15)',
-            padding: '0.15rem 0.6rem',
+            padding: '0.12rem 0.55rem',
             borderRadius: '12px',
             border: '1px solid rgba(56, 189, 248, 0.4)'
           }}>
-            ✨ {selectedShape} Constellation Active
+            ✨ {selectedShape} Active
           </span>
         )}
       </div>
 
-      <Canvas camera={{ position: [0, 0, 25], fov: 50 }}>
+      <Canvas 
+        camera={{ position: [0, 0, 25], fov: 50 }}
+        dpr={ecoMode ? 1 : [1, 1.5]}
+        gl={{ powerPreference: 'high-performance', antialias: !ecoMode }}
+      >
         <ambientLight intensity={1.5} />
         <pointLight position={[10, 10, 10]} intensity={2.5} color="#4488ff" />
         <pointLight position={[-10, -10, -10]} intensity={1.5} color="#ff88ff" />
         
-        <Stars radius={100} depth={50} count={ecoMode ? 800 : 3000} factor={6} saturation={0.5} fade speed={1} />
-        <Sparkles count={ecoMode ? 100 : 500} scale={30} size={4} speed={0.4} opacity={0.25} color="#aaddff" />
+        <Stars radius={100} depth={50} count={ecoMode ? 600 : 3000} factor={6} saturation={0.5} fade speed={1} />
+        <Sparkles count={ecoMode ? 80 : 500} scale={30} size={4} speed={0.4} opacity={0.25} color="#aaddff" />
         
         {students.map((student, idx) => {
           const studentClass = getStudentClass(student);
@@ -599,200 +628,298 @@ export default function ConstellationGame({
         />
       </Canvas>
       
-      {/* Bottom HUD Controls Bar - Compact Single Line Ribbon */}
-      <div style={{ 
-        position: 'absolute', 
-        bottom: '0.8rem', 
-        left: '50%', 
-        transform: 'translateX(-50%)', 
-        display: 'flex', 
-        flexWrap: 'nowrap', 
-        whiteSpace: 'nowrap',
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        gap: '0.35rem', 
-        background: 'rgba(10, 12, 30, 0.92)',
-        padding: '0.3rem 0.65rem',
-        borderRadius: '24px',
-        backdropFilter: 'blur(16px)',
-        border: '1px solid rgba(255, 255, 255, 0.16)',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.6)',
-        maxWidth: '96vw',
-        overflowX: 'auto',
-        scrollbarWidth: 'none',
-        zIndex: 25
-      }}>
-        
-        {/* Complete Button */}
-        <button 
-          onClick={handleComplete}
-          title="Mark unclicked students absent and ignite the glowing constellation"
-          style={{
-            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-            color: '#fff',
-            border: '1px solid rgba(255,255,255,0.4)',
-            padding: '0.35rem 0.75rem',
-            borderRadius: '16px',
-            fontFamily: 'Montserrat, sans-serif',
-            fontSize: '0.78rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-            boxShadow: '0 0 12px rgba(16, 185, 129, 0.5)',
-            transition: 'all 0.2s ease',
-            flexShrink: 0
-          }}
-        >
-          ✨ Complete
-        </button>
-
-        {/* Reset Button */}
-        <button 
-          onClick={handleReset}
-          title="Reset all attendance to 0, hide shape, and scatter stars"
-          style={{
-            background: 'rgba(239, 68, 68, 0.25)',
-            color: '#fca5a5',
-            border: '1px solid rgba(239, 68, 68, 0.5)',
-            padding: '0.35rem 0.65rem',
-            borderRadius: '16px',
-            fontFamily: 'Montserrat, sans-serif',
-            fontSize: '0.76rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            flexShrink: 0
-          }}
-        >
-          ↺ Reset
-        </button>
-
-        {/* Mark All Present */}
-        <button 
-          onClick={handleMarkAllPresent}
-          title="Mark all students present"
-          style={{
-            background: 'rgba(59, 130, 246, 0.25)',
-            color: '#93c5fd',
-            border: '1px solid rgba(59, 130, 246, 0.5)',
-            padding: '0.35rem 0.65rem',
-            borderRadius: '16px',
-            fontFamily: 'Montserrat, sans-serif',
-            fontSize: '0.76rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            flexShrink: 0
-          }}
-        >
-          Mark All Present
-        </button>
-
-        {/* Shape Selector */}
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '0.3rem', 
-          background: 'rgba(255,255,255,0.06)', 
-          padding: '0.2rem 0.55rem', 
-          borderRadius: '16px', 
-          border: '1px solid rgba(255,255,255,0.18)',
-          flexShrink: 0
+      {/* Bottom HUD Controls Bar - Minimizable & Single Line */}
+      {isControlsMinimized ? (
+        <div style={{
+          position: 'absolute',
+          bottom: '0.75rem',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 25
         }}>
-          <label style={{ 
-            color: '#94a3b8', 
-            fontSize: '0.68rem', 
-            textTransform: 'uppercase', 
-            letterSpacing: '0.06em', 
-            fontWeight: 700 
-          }}>
-            Shape:
-          </label>
-          <select 
-            value={selectedShape}
-            onChange={e => setSelectedShape(e.target.value)}
-            style={{ 
-              padding: '0.18rem 0.45rem', 
-              borderRadius: '8px', 
-              background: '#1e293b', 
-              color: '#f8fafc', 
-              outline: 'none', 
-              border: '1px solid rgba(255,255,255,0.2)', 
-              fontWeight: 600, 
-              fontSize: '0.76rem', 
-              cursor: 'pointer' 
+          <button
+            onClick={() => setIsControlsMinimized(false)}
+            title="Expand Lower Controls Ribbon"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.45rem',
+              background: 'rgba(10, 12, 30, 0.92)',
+              color: '#38bdf8',
+              border: '1px solid rgba(56, 189, 248, 0.45)',
+              padding: '0.35rem 0.9rem',
+              borderRadius: '24px',
+              fontFamily: 'Montserrat, sans-serif',
+              fontSize: '0.76rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              backdropFilter: 'blur(16px)',
+              boxShadow: '0 6px 25px rgba(0, 0, 0, 0.6)',
+              transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap'
             }}
           >
-            {shapeKeys.map(k => <option key={k} value={k}>{k}</option>)}
-          </select>
+            <span>▲ Controls</span>
+            <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 500 }}>
+              • {isFinished ? selectedShape : `Mystery #${shapeKeys.indexOf(selectedShape) + 1} ❓`}
+            </span>
+            {ecoMode && (
+              <span style={{ 
+                color: '#34d399', 
+                fontSize: '0.65rem', 
+                background: 'rgba(16, 185, 129, 0.2)', 
+                padding: '0.08rem 0.35rem', 
+                borderRadius: '8px', 
+                border: '1px solid rgba(52, 211, 153, 0.4)' 
+              }}>
+                ⚡ ECO ON
+              </span>
+            )}
+          </button>
         </div>
+      ) : (
+        <div style={{ 
+          position: 'absolute', 
+          bottom: '0.75rem', 
+          left: '50%', 
+          transform: 'translateX(-50%)', 
+          display: 'flex', 
+          flexWrap: 'nowrap', 
+          whiteSpace: 'nowrap',
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          gap: '0.35rem', 
+          background: 'rgba(10, 12, 30, 0.92)',
+          padding: '0.28rem 0.6rem',
+          borderRadius: '24px',
+          backdropFilter: 'blur(16px)',
+          border: '1px solid rgba(255, 255, 255, 0.16)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.6)',
+          maxWidth: '96vw',
+          overflowX: 'auto',
+          scrollbarWidth: 'none',
+          zIndex: 25
+        }}>
+          {/* Complete or Resume / Edit Button */}
+          {isFinished ? (
+            <button 
+              onClick={handleResume}
+              title="Resume attendance: hides constellation lines and lets you mark remaining students without losing existing attendance"
+              style={{
+                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.4)',
+                padding: '0.32rem 0.75rem',
+                borderRadius: '16px',
+                fontFamily: 'Montserrat, sans-serif',
+                fontSize: '0.76rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                boxShadow: '0 0 12px rgba(245, 158, 11, 0.5)',
+                transition: 'all 0.2s ease',
+                flexShrink: 0
+              }}
+            >
+              🔓 Resume / Edit
+            </button>
+          ) : (
+            <button 
+              onClick={handleComplete}
+              title="Mark unclicked students absent and ignite the glowing constellation"
+              style={{
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.4)',
+                padding: '0.32rem 0.7rem',
+                borderRadius: '16px',
+                fontFamily: 'Montserrat, sans-serif',
+                fontSize: '0.76rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                boxShadow: '0 0 12px rgba(16, 185, 129, 0.5)',
+                transition: 'all 0.2s ease',
+                flexShrink: 0
+              }}
+            >
+              ✨ Complete
+            </button>
+          )}
 
-        {/* Random Shape Button */}
-        <button 
-          onClick={() => {
-            const randomKey = shapeKeys[Math.floor(Math.random() * shapeKeys.length)];
-            setSelectedShape(randomKey);
-          }}
-          title="Choose a random constellation shape"
-          style={{
-            background: 'rgba(147, 51, 234, 0.25)',
-            color: '#d8b4fe',
-            border: '1px solid rgba(168, 85, 247, 0.5)',
-            padding: '0.35rem 0.65rem',
-            borderRadius: '16px',
-            fontFamily: 'Montserrat, sans-serif',
-            fontSize: '0.76rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            flexShrink: 0
-          }}
-        >
-          🎲 Random
-        </button>
+          {/* Reset Button */}
+          <button 
+            onClick={handleReset}
+            title="Reset all attendance to 0, hide shape, and scatter stars"
+            style={{
+              background: 'rgba(239, 68, 68, 0.25)',
+              color: '#fca5a5',
+              border: '1px solid rgba(239, 68, 68, 0.5)',
+              padding: '0.32rem 0.6rem',
+              borderRadius: '16px',
+              fontFamily: 'Montserrat, sans-serif',
+              fontSize: '0.74rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              flexShrink: 0
+            }}
+          >
+            ↺ Reset
+          </button>
 
-        {/* Gather / Release Stars Button */}
-        <button 
-          onClick={() => setIsGathered(!isGathered)}
-          title="Toggle between organized grid and 3D scattered orbit"
-          style={{
-            background: isGathered ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.08)',
-            color: isGathered ? '#0f172a' : '#e2e8f0',
-            border: '1px solid rgba(255,255,255,0.25)',
-            padding: '0.35rem 0.65rem',
-            borderRadius: '16px',
-            fontFamily: 'Montserrat, sans-serif',
-            fontSize: '0.76rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            boxShadow: isGathered ? '0 0 10px rgba(255,255,255,0.3)' : 'none',
-            flexShrink: 0
-          }}
-        >
-          {isGathered ? "Release" : "Gather Stars"}
-        </button>
+          {/* Mark All Present */}
+          <button 
+            onClick={handleMarkAllPresent}
+            title="Mark all students present"
+            style={{
+              background: 'rgba(59, 130, 246, 0.25)',
+              color: '#93c5fd',
+              border: '1px solid rgba(59, 130, 246, 0.5)',
+              padding: '0.32rem 0.6rem',
+              borderRadius: '16px',
+              fontFamily: 'Montserrat, sans-serif',
+              fontSize: '0.74rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              flexShrink: 0
+            }}
+          >
+            All Present
+          </button>
 
-        {/* Eco Mode Toggle */}
-        <button 
-          onClick={() => setEcoMode(!ecoMode)}
-          title="Toggle performance mode"
-          style={{
-            background: ecoMode ? 'rgba(16, 185, 129, 0.25)' : 'rgba(255,255,255,0.06)',
-            color: ecoMode ? '#34d399' : '#94a3b8',
-            border: ecoMode ? '1px solid rgba(52, 211, 153, 0.5)' : '1px solid rgba(255,255,255,0.18)',
-            padding: '0.35rem 0.65rem',
-            borderRadius: '16px',
-            fontFamily: 'Montserrat, sans-serif',
-            fontSize: '0.76rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
+          {/* Shape Selector - Mystery name hidden until Complete is clicked */}
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '0.25rem', 
+            background: 'rgba(255,255,255,0.06)', 
+            padding: '0.18rem 0.45rem', 
+            borderRadius: '16px', 
+            border: '1px solid rgba(255,255,255,0.18)',
             flexShrink: 0
-          }}
-        >
-          {ecoMode ? "Eco: ON" : "Eco: OFF"}
-        </button>
-      </div>
+          }}>
+            <label style={{ 
+              color: '#94a3b8', 
+              fontSize: '0.65rem', 
+              textTransform: 'uppercase', 
+              letterSpacing: '0.06em', 
+              fontWeight: 700 
+            }}>
+              {isFinished ? 'Shape:' : 'Mystery:'}
+            </label>
+            <select 
+              value={selectedShape}
+              onChange={e => setSelectedShape(e.target.value)}
+              title={isFinished ? `Active Shape: ${selectedShape}` : "Secret Mystery Constellation (revealed upon Complete)"}
+              style={{ 
+                padding: '0.15rem 0.35rem', 
+                borderRadius: '8px', 
+                background: '#1e293b', 
+                color: isFinished ? '#38bdf8' : '#f8fafc', 
+                outline: 'none', 
+                border: '1px solid rgba(255,255,255,0.2)', 
+                fontWeight: 600, 
+                fontSize: '0.74rem', 
+                cursor: 'pointer' 
+              }}
+            >
+              {shapeKeys.map((k, idx) => (
+                <option key={k} value={k}>
+                  {isFinished ? k : `Constellation #${idx + 1} ❓`}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Random Shape Button */}
+          <button 
+            onClick={() => {
+              const randomKey = shapeKeys[Math.floor(Math.random() * shapeKeys.length)];
+              setSelectedShape(randomKey);
+            }}
+            title="Choose a random constellation shape"
+            style={{
+              background: 'rgba(147, 51, 234, 0.25)',
+              color: '#d8b4fe',
+              border: '1px solid rgba(168, 85, 247, 0.5)',
+              padding: '0.32rem 0.55rem',
+              borderRadius: '16px',
+              fontFamily: 'Montserrat, sans-serif',
+              fontSize: '0.74rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              flexShrink: 0
+            }}
+          >
+            🎲 Random
+          </button>
+
+          {/* Gather / Release Stars Button */}
+          <button 
+            onClick={() => setIsGathered(!isGathered)}
+            title="Toggle between organized grid and 3D scattered orbit"
+            style={{
+              background: isGathered ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.08)',
+              color: isGathered ? '#0f172a' : '#e2e8f0',
+              border: '1px solid rgba(255,255,255,0.25)',
+              padding: '0.32rem 0.6rem',
+              borderRadius: '16px',
+              fontFamily: 'Montserrat, sans-serif',
+              fontSize: '0.74rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: isGathered ? '0 0 10px rgba(255,255,255,0.3)' : 'none',
+              flexShrink: 0
+            }}
+          >
+            {isGathered ? "Release" : "Gather"}
+          </button>
+
+          {/* Eco Mode Toggle */}
+          <button 
+            onClick={toggleEcoMode}
+            title="Toggle performance mode"
+            style={{
+              background: ecoMode ? 'rgba(16, 185, 129, 0.25)' : 'rgba(255,255,255,0.06)',
+              color: ecoMode ? '#34d399' : '#94a3b8',
+              border: ecoMode ? '1px solid rgba(52, 211, 153, 0.5)' : '1px solid rgba(255,255,255,0.18)',
+              padding: '0.32rem 0.6rem',
+              borderRadius: '16px',
+              fontFamily: 'Montserrat, sans-serif',
+              fontSize: '0.74rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              flexShrink: 0
+            }}
+          >
+            {ecoMode ? "⚡ Eco: ON" : "Eco: OFF"}
+          </button>
+
+          {/* Minimize Ribbon Button */}
+          <button
+            onClick={() => setIsControlsMinimized(true)}
+            title="Minimize ribbon to save screen space"
+            style={{
+              background: 'rgba(255, 255, 255, 0.08)',
+              color: '#94a3b8',
+              border: '1px solid rgba(255, 255, 255, 0.18)',
+              padding: '0.32rem 0.55rem',
+              borderRadius: '16px',
+              fontFamily: 'Montserrat, sans-serif',
+              fontSize: '0.74rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              flexShrink: 0
+            }}
+          >
+            ▼ Min
+          </button>
+        </div>
+      )}
     </div>
   );
 }

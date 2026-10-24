@@ -13,6 +13,7 @@ import {
   guessExcelColumns, 
   filterSheetsForImport 
 } from './utils/excelParser';
+import ATWLogo from './ATWLogo';
 import './index.css';
 
 function App() {
@@ -57,6 +58,21 @@ function App() {
   useEffect(() => {
     setCurrentPage(1);
   }, [activeCategory, activeClass, activeSection, activeBatch, searchQuery, showDefaulters]);
+
+  // Dynamic Document Title based on current page, selected student, defaulter filter, or class
+  useEffect(() => {
+    if (activePage === 'directory') {
+      if (selectedStudent) {
+        document.title = `ATW • ${selectedStudent.Name} | Fee Records`;
+      } else if (showDefaulters) {
+        document.title = "ATW • Defaulters Directory";
+      } else if (activeClass !== 'All') {
+        document.title = `ATW • Class ${activeClass} Directory`;
+      } else {
+        document.title = "ATW • Student Directory";
+      }
+    }
+  }, [activePage, selectedStudent, showDefaulters, activeClass]);
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -373,7 +389,11 @@ function App() {
       </AnimatePresence>
 
       <div className="canvas-wrapper">
-        <Canvas camera={{ position: [0, 0, 8], fov: 45 }}>
+        <Canvas 
+          camera={{ position: [0, 0, 8], fov: 45 }}
+          dpr={[1, 1.5]}
+          gl={{ powerPreference: 'high-performance' }}
+        >
           <Suspense fallback={null}>
             <ThreeScene 
               availableSections={availableSections} 
@@ -447,6 +467,14 @@ function App() {
       <div className="scroll-container">
         
         <section className="hero-section">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            style={{ marginBottom: '1.2rem', display: 'flex', justifyContent: 'center' }}
+          >
+            <ATWLogo size={72} showText={false} isDark={false} />
+          </motion.div>
           <motion.h1 
             initial={{ opacity: 0, y: 50 }} 
             animate={{ opacity: 1, y: 0 }} 

@@ -4,7 +4,7 @@ import { OrbitControls, Text, Billboard, Sparkles, Float, MeshDistortMaterial } 
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
 
-function BubbleNode({ student, initialPos, isPresent, isAbsent, onClick }) {
+function BubbleNode({ student, initialPos, isPresent, isAbsent, onClick, ecoMode }) {
   const groupRef = useRef();
   const meshRef = useRef();
   const [hovered, setHovered] = useState(false);
@@ -46,20 +46,32 @@ function BubbleNode({ student, initialPos, isPresent, isAbsent, onClick }) {
     >
       <Float speed={2} rotationIntensity={0.5} floatIntensity={1}>
         <mesh ref={meshRef}>
-          <sphereGeometry args={[1.2, 64, 64]} />
-          <MeshDistortMaterial 
-            color={materialColor}
-            emissive={emissiveColor}
-            emissiveIntensity={hovered ? 1 : 0.2}
-            transparent
-            opacity={0.7}
-            distort={0.3}
-            speed={2}
-            roughness={0.1}
-            metalness={0.5}
-            clearcoat={1}
-            clearcoatRoughness={0.1}
-          />
+          <sphereGeometry args={[1.2, 24, 24]} />
+          {ecoMode ? (
+            <meshStandardMaterial 
+              color={materialColor}
+              emissive={emissiveColor}
+              emissiveIntensity={hovered ? 0.8 : 0.25}
+              transparent
+              opacity={0.7}
+              roughness={0.2}
+              metalness={0.4}
+            />
+          ) : (
+            <MeshDistortMaterial 
+              color={materialColor}
+              emissive={emissiveColor}
+              emissiveIntensity={hovered ? 1 : 0.2}
+              transparent
+              opacity={0.7}
+              distort={0.25}
+              speed={1.8}
+              roughness={0.1}
+              metalness={0.5}
+              clearcoat={1}
+              clearcoatRoughness={0.1}
+            />
+          )}
         </mesh>
       </Float>
       
@@ -94,7 +106,7 @@ function BubbleNode({ student, initialPos, isPresent, isAbsent, onClick }) {
   );
 }
 
-export default function BubblePopperGame({ students, attendanceData, selectedClass, selectedClasses, selectedDate, setAttendanceStatus, onToggleAttendance, markRemainingAbsent }) {
+export default function BubblePopperGame({ students, attendanceData, selectedClass, selectedClasses, selectedDate, setAttendanceStatus, onToggleAttendance, markRemainingAbsent, ecoMode = true }) {
   const toggleAttendance = setAttendanceStatus || onToggleAttendance;
   const initialPositions = useMemo(() => {
     return students.map((_, i) => new THREE.Vector3(
@@ -108,13 +120,17 @@ export default function BubblePopperGame({ students, attendanceData, selectedCla
 
   return (
     <div style={{ width: '100%', height: '100%', background: 'radial-gradient(circle at center, #004e92 0%, #000428 100%)' }}>
-      <Canvas camera={{ position: [0, 0, 25], fov: 50 }}>
+      <Canvas 
+        camera={{ position: [0, 0, 25], fov: 50 }}
+        dpr={ecoMode ? 1 : [1, 1.5]}
+        gl={{ powerPreference: 'high-performance', antialias: !ecoMode }}
+      >
         <ambientLight intensity={1.5} />
         <directionalLight position={[10, 10, 10]} intensity={3} color="#aaccff" />
         <pointLight position={[-10, -10, -10]} intensity={1} color="#ff00ff" />
         
         {/* Magical Environment Sparkles */}
-        <Sparkles count={300} scale={30} size={3} speed={0.5} opacity={0.3} color="#88ccff" />
+        <Sparkles count={ecoMode ? 80 : 300} scale={30} size={3} speed={0.4} opacity={0.25} color="#88ccff" />
 
         {students.map((student, idx) => {
           const studentClass = getStudentClass(student);
@@ -126,6 +142,7 @@ export default function BubblePopperGame({ students, attendanceData, selectedCla
               initialPos={initialPositions[idx]}
               isPresent={status === 'P'}
               isAbsent={status === 'A'}
+              ecoMode={ecoMode}
               onClick={() => {
                 if (toggleAttendance && status !== 'P') toggleAttendance(student.Name, 'P', studentClass);
               }}
@@ -133,9 +150,11 @@ export default function BubblePopperGame({ students, attendanceData, selectedCla
           );
         })}
         
-        <EffectComposer disableNormalPass>
-          <Bloom luminanceThreshold={0.2} luminanceSmoothing={0.9} intensity={1.5} radius={0.8} />
-        </EffectComposer>
+        {!ecoMode && (
+          <EffectComposer disableNormalPass>
+            <Bloom luminanceThreshold={0.2} luminanceSmoothing={0.9} intensity={1.5} radius={0.8} />
+          </EffectComposer>
+        )}
         
         <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
       </Canvas>

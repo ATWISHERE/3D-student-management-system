@@ -2,12 +2,20 @@ import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
-import { Settings, Upload, Save, Check, X, ShieldAlert, Gamepad2, List } from 'lucide-react';
+import { Settings, Upload, Save, Check, X, ShieldAlert, Gamepad2, List, Volume2, VolumeX } from 'lucide-react';
 import ThreeScene from './ThreeBackground';
 import ConstellationGame from './ConstellationGame';
 import BubblePopperGame from './BubblePopperGame';
 import FallingStarsGame from './FallingStarsGame';
 import TargetPracticeGame from './TargetPracticeGame';
+import ATWLogo from './ATWLogo';
+import { 
+  playPresentSound, 
+  playAbsentSound, 
+  playCompleteSound, 
+  playClickSound, 
+  soundSettings 
+} from './utils/soundEffects';
 import { parseClassSection, normalizeDate, isSummaryOrInvalidRow } from './utils/excelParser';
 
 export default function AttendanceSystem({ students, onBack }) {
@@ -16,6 +24,29 @@ export default function AttendanceSystem({ students, onBack }) {
   const [selectedGame, setSelectedGame] = useState('constellation');
   const [allMarkState, setAllMarkState] = useState('present'); // toggle state
   const [toast, setToast] = useState(null);
+
+  const [soundEnabled, setSoundEnabled] = useState(() => soundSettings.isEnabled());
+
+  const toggleSound = () => {
+    const next = soundSettings.toggle();
+    setSoundEnabled(next);
+    if (next) {
+      playClickSound();
+    }
+  };
+
+  const [ecoMode, setEcoMode] = useState(() => {
+    const saved = localStorage.getItem('ecoMode');
+    return saved !== null ? saved === 'true' : true; // Eco mode ON by default!
+  });
+
+  const toggleEcoMode = () => {
+    setEcoMode(prev => {
+      const next = !prev;
+      localStorage.setItem('ecoMode', String(next));
+      return next;
+    });
+  };
 
   const showToast = (message, type = 'info') => {
     setToast({ message, type });
@@ -69,6 +100,20 @@ export default function AttendanceSystem({ students, onBack }) {
       setSelectedClasses([...selectedClasses, cls]);
     }
   };
+
+  // Dynamic Document Title based on active view, game, and selected classes
+  useEffect(() => {
+    const classLabel = selectedClasses.length > 0 ? selectedClasses.join(', ') : 'All Classes';
+    if (activeView === 'register') {
+      document.title = `ATW • Attendance Register (${classLabel})`;
+    } else {
+      let gameName = '3D Constellation Attendance';
+      if (selectedGame === 'bubble') gameName = 'Bubble Popper Attendance';
+      else if (selectedGame === 'falling') gameName = 'Falling Stars Attendance';
+      else if (selectedGame === 'target') gameName = 'Target Practice Attendance';
+      document.title = `ATW • ${gameName} (${classLabel})`;
+    }
+  }, [activeView, selectedGame, selectedClasses]);
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -238,6 +283,15 @@ export default function AttendanceSystem({ students, onBack }) {
       
       const newStatus = studentData[selectedDate] === status ? '' : status;
 
+      // Play ultra-responsive synthesizer sound
+      if (newStatus === 'P') {
+        playPresentSound();
+      } else if (newStatus === 'A') {
+        playAbsentSound();
+      } else {
+        playClickSound();
+      }
+
       return {
         ...prev,
         [targetClass]: {
@@ -252,6 +306,7 @@ export default function AttendanceSystem({ students, onBack }) {
   };
 
   const markRemainingAbsent = () => {
+    playAbsentSound();
     setAttendanceData(prev => {
       const newData = { ...prev };
       currentClassStudents.forEach(student => {
@@ -269,6 +324,7 @@ export default function AttendanceSystem({ students, onBack }) {
   };
 
   const resetClassAttendance = () => {
+    playClickSound();
     setAttendanceData(prev => {
       const newData = { ...prev };
       currentClassStudents.forEach(student => {
@@ -284,6 +340,7 @@ export default function AttendanceSystem({ students, onBack }) {
   };
 
   const markAllPresent = () => {
+    playCompleteSound();
     setAttendanceData(prev => {
       const newData = { ...prev };
       currentClassStudents.forEach(student => {
@@ -305,12 +362,15 @@ export default function AttendanceSystem({ students, onBack }) {
     if (allMarkState === 'present') {
       targetStatus = 'P';
       nextState = 'absent';
+      playCompleteSound();
     } else if (allMarkState === 'absent') {
       targetStatus = 'A';
       nextState = 'clear';
+      playAbsentSound();
     } else if (allMarkState === 'clear') {
       targetStatus = '';
       nextState = 'present';
+      playClickSound();
     }
     
     setAttendanceData(prev => {
@@ -385,39 +445,55 @@ export default function AttendanceSystem({ students, onBack }) {
         )}
       </AnimatePresence>
 
-      {/* Top Navigation Bar & Global Selectors */}
+      {/* Top Navigation Bar - Strict Single Line Ribbon */}
       <motion.div 
         initial={{ y: -50, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         style={{
           position: 'absolute', top: 0, left: 0, right: 0, zIndex: 100,
-          padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem',
-          background: activeView === 'game' ? 'rgba(10,10,26,0.85)' : 'rgba(252,251,250,0.92)', 
-          backdropFilter: 'blur(10px)',
-          borderBottom: activeView === 'game' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.05)',
+          height: '52px',
+          padding: '0 0.8rem',
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          flexWrap: 'nowrap', 
+          whiteSpace: 'nowrap',
+          gap: '0.6rem',
+          background: activeView === 'game' ? 'rgba(10,10,26,0.92)' : 'rgba(252,251,250,0.95)', 
+          backdropFilter: 'blur(16px)',
+          borderBottom: activeView === 'game' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.06)',
           color: activeView === 'game' ? '#fff' : 'var(--text-main)',
-          transition: 'all 0.5s ease'
+          boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
+          overflowX: 'auto',
+          scrollbarWidth: 'none'
         }}
       >
-        <button 
-          onClick={onBack}
-          style={{ 
-            fontFamily: 'Cormorant Garamond', fontSize: '1rem', fontStyle: 'italic',
-            background: 'transparent', border: 'none', cursor: 'pointer', 
-            color: activeView === 'game' ? '#fff' : 'var(--text-main)',
-            borderBottom: activeView === 'game' ? '1px solid rgba(255,255,255,0.5)' : '1px solid var(--text-accent)'
-          }}
-        >
-          ← Back to Directory
-        </button>
+        {/* Left: ATW Logo Brand & Back Button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+          <ATWLogo size={24} showText={true} isDark={activeView === 'game'} />
+          <button 
+            onClick={onBack}
+            style={{ 
+              fontFamily: 'Cormorant Garamond', fontSize: '0.95rem', fontStyle: 'italic',
+              background: 'transparent', border: 'none', cursor: 'pointer', 
+              color: activeView === 'game' ? '#fff' : 'var(--text-main)',
+              borderBottom: activeView === 'game' ? '1px solid rgba(255,255,255,0.4)' : '1px solid var(--text-accent)',
+              whiteSpace: 'nowrap',
+              padding: '0.2rem 0',
+              flexShrink: 0
+            }}
+          >
+            ← Directory
+          </button>
+        </div>
 
-        {/* Pinned Selectors */}
-        <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        {/* Center: Selectors & Live Stats */}
+        <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'center', flexWrap: 'nowrap', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
             {mergeMode ? (
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', maxWidth: '300px', maxHeight: '60px', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'nowrap', maxHeight: '36px', overflowX: 'auto', scrollbarWidth: 'none' }}>
                 {classSections.map(cls => (
-                  <label key={cls} style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.8rem', background: 'rgba(255,255,255,0.2)', padding: '0.2rem 0.5rem', borderRadius: '15px' }}>
+                  <label key={cls} style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.75rem', background: 'rgba(255,255,255,0.15)', padding: '0.15rem 0.45rem', borderRadius: '12px', cursor: 'pointer' }}>
                     <input type="checkbox" checked={selectedClasses.includes(cls)} onChange={() => toggleClassSelection(cls)} />
                     <span style={{ color: activeView === 'game' ? '#fff' : '#000' }}>{cls}</span>
                   </label>
@@ -428,10 +504,12 @@ export default function AttendanceSystem({ students, onBack }) {
                 value={selectedClasses[0] || ''} 
                 onChange={(e) => setSelectedClasses([e.target.value])}
                 style={{ 
-                  padding: '0.4rem 1rem', borderRadius: '20px', fontSize: '0.9rem', outline: 'none',
-                  background: activeView === 'game' ? 'rgba(255,255,255,0.1)' : '#fff',
+                  padding: '0.25rem 0.65rem', borderRadius: '16px', fontSize: '0.82rem', outline: 'none',
+                  background: activeView === 'game' ? 'rgba(255,255,255,0.12)' : '#fff',
                   color: activeView === 'game' ? '#fff' : 'var(--text-main)',
-                  border: activeView === 'game' ? '1px solid rgba(255,255,255,0.2)' : '1px solid #eaeaea'
+                  border: activeView === 'game' ? '1px solid rgba(255,255,255,0.2)' : '1px solid #e0e0e0',
+                  fontWeight: 600,
+                  cursor: 'pointer'
                 }}
               >
                 {classSections.map(cls => <option key={cls} value={cls} style={{ color: '#000' }}>{cls}</option>)}
@@ -439,13 +517,15 @@ export default function AttendanceSystem({ students, onBack }) {
             )}
             <button 
               onClick={() => setMergeMode(!mergeMode)} 
+              title="Merge multiple classes"
               style={{ 
                 background: mergeMode ? 'var(--text-accent)' : 'transparent', 
                 color: mergeMode ? '#fff' : (activeView === 'game' ? '#fff' : 'var(--text-main)'), 
-                border: `1px solid ${mergeMode ? 'var(--text-accent)' : '#eaeaea'}`, 
-                padding: '0.4rem 0.8rem', borderRadius: '20px', fontSize: '0.8rem', cursor: 'pointer', transition: 'all 0.3s' 
+                border: `1px solid ${mergeMode ? 'var(--text-accent)' : (activeView === 'game' ? 'rgba(255,255,255,0.2)' : '#e0e0e0')}`, 
+                padding: '0.25rem 0.55rem', borderRadius: '16px', fontSize: '0.76rem', cursor: 'pointer', transition: 'all 0.2s',
+                fontWeight: 600
               }}>
-              {mergeMode ? 'Done Merging' : 'Merge'}
+              {mergeMode ? 'Done' : 'Merge'}
             </button>
           </div>
 
@@ -455,10 +535,11 @@ export default function AttendanceSystem({ students, onBack }) {
               value={selectedBatch}
               onChange={(e) => setSelectedBatch(e.target.value)}
               style={{
-                padding: '0.4rem 0.8rem', borderRadius: '20px', fontSize: '0.85rem', outline: 'none',
-                background: activeView === 'game' ? 'rgba(255,255,255,0.1)' : '#fff',
+                padding: '0.25rem 0.55rem', borderRadius: '16px', fontSize: '0.8rem', outline: 'none',
+                background: activeView === 'game' ? 'rgba(255,255,255,0.12)' : '#fff',
                 color: activeView === 'game' ? '#fff' : 'var(--text-main)',
-                border: activeView === 'game' ? '1px solid rgba(255,255,255,0.2)' : '1px solid #eaeaea'
+                border: activeView === 'game' ? '1px solid rgba(255,255,255,0.2)' : '1px solid #e0e0e0',
+                cursor: 'pointer'
               }}
             >
               {availableBatches.map(b => (
@@ -474,57 +555,123 @@ export default function AttendanceSystem({ students, onBack }) {
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
             style={{ 
-              padding: '0.4rem 0.8rem', borderRadius: '20px', fontSize: '0.85rem', outline: 'none',
-              background: activeView === 'game' ? 'rgba(255,255,255,0.1)' : '#fff',
+              padding: '0.22rem 0.55rem', borderRadius: '16px', fontSize: '0.8rem', outline: 'none',
+              background: activeView === 'game' ? 'rgba(255,255,255,0.12)' : '#fff',
               color: activeView === 'game' ? '#fff' : 'var(--text-main)',
-              border: activeView === 'game' ? '1px solid rgba(255,255,255,0.2)' : '1px solid #eaeaea'
+              border: activeView === 'game' ? '1px solid rgba(255,255,255,0.2)' : '1px solid #e0e0e0',
+              cursor: 'pointer'
             }}
           />
 
+          {/* Live Attendance Stats */}
           <div style={{
-            display: 'flex', gap: '0.8rem', 
-            background: activeView === 'game' ? 'rgba(255,255,255,0.1)' : '#fff', 
-            padding: '0.4rem 0.9rem', borderRadius: '20px', 
-            fontSize: '0.85rem', fontWeight: 'bold',
-            border: activeView === 'game' ? '1px solid rgba(255,255,255,0.2)' : '1px solid #eaeaea',
+            display: 'flex', gap: '0.5rem', 
+            background: activeView === 'game' ? 'rgba(255,255,255,0.08)' : '#fff', 
+            padding: '0.22rem 0.65rem', borderRadius: '16px', 
+            fontSize: '0.8rem', fontWeight: 600,
+            border: activeView === 'game' ? '1px solid rgba(255,255,255,0.18)' : '1px solid #e0e0e0',
             whiteSpace: 'nowrap'
           }}>
-            <span style={{ color: activeView === 'game' ? '#aaa' : '#666' }}>Total: <span style={{ color: activeView === 'game' ? '#fff' : '#000' }}>{totalCount}</span></span>
-            <span style={{ color: '#4caf50' }}>P: {presentCount}</span>
-            <span style={{ color: '#f44336' }}>A: {absentCount}</span>
+            <span style={{ color: activeView === 'game' ? '#aaa' : '#666' }}>Total: {totalCount}</span>
+            <span style={{ color: '#10b981' }}>P: {presentCount}</span>
+            <span style={{ color: '#ef4444' }}>A: {absentCount}</span>
           </div>
+
+          {/* Game Selector (only in game view) */}
+          {activeView === 'game' && (
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '0.3rem', 
+              background: 'rgba(255,255,255,0.08)', 
+              padding: '0.18rem 0.55rem', 
+              borderRadius: '16px',
+              border: '1px solid rgba(255,255,255,0.18)'
+            }}>
+              <select 
+                value={selectedGame} 
+                onChange={(e) => setSelectedGame(e.target.value)}
+                style={{ 
+                  background: 'transparent', 
+                  color: '#fff', 
+                  border: 'none', 
+                  outline: 'none', 
+                  fontSize: '0.8rem', 
+                  fontWeight: 600, 
+                  cursor: 'pointer' 
+                }}
+              >
+                <option value="constellation" style={{ color: '#000' }}>✨ Constellation</option>
+                <option value="bubble" style={{ color: '#000' }}>🫧 Bubble Popper</option>
+                <option value="falling" style={{ color: '#000' }}>⭐ Falling Stars</option>
+                <option value="target" style={{ color: '#000' }}>🎯 Target Practice</option>
+              </select>
+            </div>
+          )}
+
+          {/* Eco Mode Toggle in Upper Ribbon */}
+          <button 
+            onClick={toggleEcoMode}
+            title={ecoMode ? "Eco Mode is ON (Super Fast). Click to turn OFF." : "Eco Mode is OFF. Click to turn ON."}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem',
+              background: ecoMode ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.08)',
+              color: ecoMode ? '#34d399' : '#94a3b8',
+              border: ecoMode ? '1px solid rgba(52, 211, 153, 0.5)' : '1px solid rgba(255,255,255,0.2)',
+              padding: '0.22rem 0.55rem',
+              borderRadius: '16px',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              flexShrink: 0
+            }}
+          >
+            {ecoMode ? "⚡ Eco: ON" : "Eco: OFF"}
+          </button>
+
+          {/* Sound FX Toggle in Upper Ribbon */}
+          <button 
+            onClick={toggleSound}
+            title={soundEnabled ? "Sound Effects are ON. Click to mute." : "Sound Effects are MUTED. Click to enable."}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.25rem',
+              background: soundEnabled ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.08)',
+              color: soundEnabled ? '#38bdf8' : '#94a3b8',
+              border: soundEnabled ? '1px solid rgba(56, 189, 248, 0.5)' : '1px solid rgba(255,255,255,0.2)',
+              padding: '0.22rem 0.55rem',
+              borderRadius: '16px',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              flexShrink: 0
+            }}
+          >
+            {soundEnabled ? <Volume2 size={13} /> : <VolumeX size={13} />}
+            <span>{soundEnabled ? "Sound: ON" : "Muted"}</span>
+          </button>
         </div>
 
-        {/* Game Selector (only in game view) */}
-        {activeView === 'game' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.1)', padding: '0.3rem 0.8rem', borderRadius: '20px' }}>
-            <label style={{ fontSize: '0.8rem', color: '#fff', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Game:</label>
-            <select 
-              value={selectedGame} 
-              onChange={(e) => setSelectedGame(e.target.value)}
-              style={{ background: 'transparent', color: '#fff', border: 'none', outline: 'none', fontSize: '0.85rem', cursor: 'pointer' }}
-            >
-              <option value="constellation" style={{ color: '#000' }}>✨ 3D Constellation</option>
-              <option value="bubble" style={{ color: '#000' }}>🫧 Bubble Popper</option>
-              <option value="falling" style={{ color: '#000' }}>⭐ Falling Stars</option>
-              <option value="target" style={{ color: '#000' }}>🎯 Target Practice</option>
-            </select>
-          </div>
-        )}
-
-        {/* Mode Toggle & Admin Options */}
-        <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
+        {/* Right Section: Mode Toggle & Actions */}
+        <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'center', flexShrink: 0 }}>
           <button 
             onClick={() => setActiveView(activeView === 'game' ? 'register' : 'game')}
             style={{ 
-              display: 'flex', alignItems: 'center', gap: '0.5rem',
+              display: 'flex', alignItems: 'center', gap: '0.35rem',
               background: 'transparent', color: activeView === 'game' ? '#fff' : 'var(--text-main)', 
-              border: activeView === 'game' ? '1px solid rgba(255,255,255,0.3)' : '1px solid #eaeaea', 
-              padding: '0.4rem 1rem', borderRadius: '20px', cursor: 'pointer', fontSize: '0.85rem'
+              border: activeView === 'game' ? '1px solid rgba(255,255,255,0.25)' : '1px solid #e0e0e0', 
+              padding: '0.25rem 0.75rem', borderRadius: '16px', cursor: 'pointer', fontSize: '0.8rem',
+              fontWeight: 600,
+              flexShrink: 0
             }}
           >
-            {activeView === 'game' ? <List size={16} /> : <Gamepad2 size={16} />}
-            {activeView === 'game' ? 'Register View' : 'Game View'}
+            {activeView === 'game' ? <List size={14} /> : <Gamepad2 size={14} />}
+            {activeView === 'game' ? 'Register' : 'Game'}
           </button>
 
           {isPastDate && (
@@ -534,10 +681,11 @@ export default function AttendanceSystem({ students, onBack }) {
               style={{ 
                 background: editMode ? '#ff9800' : 'transparent', 
                 color: editMode ? '#fff' : (activeView === 'game' ? '#fff' : 'var(--text-main)'), 
-                border: 'none', cursor: 'pointer', padding: '0.4rem', borderRadius: '50%' 
+                border: 'none', cursor: 'pointer', padding: '0.3rem', borderRadius: '50%',
+                display: 'flex', alignItems: 'center', justifyContent: 'center'
               }}
             >
-              <Settings size={18} />
+              <Settings size={16} />
             </button>
           )}
 
@@ -550,25 +698,41 @@ export default function AttendanceSystem({ students, onBack }) {
           />
 
           <button 
-            onClick={() => fileInputRef.current.click()} 
+            onClick={() => fileInputRef.current?.click()} 
             title="Import Attendance Excel"
-            style={{ background: 'transparent', color: activeView === 'game' ? '#fff' : 'var(--text-main)', border: 'none', cursor: 'pointer', padding: '0.4rem' }}
+            style={{ 
+              background: 'transparent', 
+              color: activeView === 'game' ? '#fff' : 'var(--text-main)', 
+              border: 'none', 
+              cursor: 'pointer', 
+              padding: '0.3rem',
+              display: 'flex',
+              alignItems: 'center'
+            }}
           >
-            <Upload size={18} />
+            <Upload size={16} />
           </button>
 
           <button 
             onClick={handleSave} 
             title="Save/Export to Excel"
-            style={{ background: 'transparent', color: activeView === 'game' ? '#fff' : 'var(--text-main)', border: 'none', cursor: 'pointer', padding: '0.4rem' }}
+            style={{ 
+              background: 'transparent', 
+              color: activeView === 'game' ? '#fff' : 'var(--text-main)', 
+              border: 'none', 
+              cursor: 'pointer', 
+              padding: '0.3rem',
+              display: 'flex',
+              alignItems: 'center'
+            }}
           >
-            <Save size={18} />
+            <Save size={16} />
           </button>
         </div>
       </motion.div>
 
       {/* Main Content Area */}
-      <div style={{ width: '100%', height: '100%', paddingTop: '70px' }}>
+      <div style={{ width: '100%', height: '100%', paddingTop: '52px' }}>
         {activeView === 'game' ? (
           <div style={{ width: '100%', height: '100%', position: 'relative' }}>
             {selectedGame === 'constellation' && (
@@ -582,6 +746,8 @@ export default function AttendanceSystem({ students, onBack }) {
                 markRemainingAbsent={markRemainingAbsent}
                 markAllPresent={markAllPresent}
                 resetAttendance={resetClassAttendance}
+                ecoMode={ecoMode}
+                onToggleEcoMode={toggleEcoMode}
               />
             )}
             {selectedGame === 'bubble' && (
@@ -593,6 +759,7 @@ export default function AttendanceSystem({ students, onBack }) {
                 setAttendanceStatus={setAttendanceStatus}
                 onToggleAttendance={setAttendanceStatus} 
                 markRemainingAbsent={markRemainingAbsent}
+                ecoMode={ecoMode}
               />
             )}
             {selectedGame === 'falling' && (
@@ -604,6 +771,7 @@ export default function AttendanceSystem({ students, onBack }) {
                 setAttendanceStatus={setAttendanceStatus}
                 onToggleAttendance={setAttendanceStatus} 
                 markRemainingAbsent={markRemainingAbsent}
+                ecoMode={ecoMode}
               />
             )}
             {selectedGame === 'target' && (
@@ -615,6 +783,7 @@ export default function AttendanceSystem({ students, onBack }) {
                 setAttendanceStatus={setAttendanceStatus}
                 onToggleAttendance={setAttendanceStatus} 
                 markRemainingAbsent={markRemainingAbsent}
+                ecoMode={ecoMode}
               />
             )}
 
@@ -622,17 +791,18 @@ export default function AttendanceSystem({ students, onBack }) {
             {selectedGame !== 'constellation' && (
               <div style={{ 
                 position: 'absolute', 
-                bottom: '2rem', 
+                bottom: '1rem', 
                 left: '50%', 
                 transform: 'translateX(-50%)', 
                 display: 'flex', 
-                gap: '0.8rem', 
+                flexWrap: 'nowrap',
+                gap: '0.4rem', 
                 alignItems: 'center',
-                background: 'rgba(10, 10, 26, 0.85)', 
-                padding: '0.45rem 1rem', 
-                borderRadius: '30px', 
-                backdropFilter: 'blur(14px)', 
-                border: '1px solid rgba(255, 255, 255, 0.18)', 
+                background: 'rgba(10, 10, 26, 0.9)', 
+                padding: '0.3rem 0.7rem', 
+                borderRadius: '24px', 
+                backdropFilter: 'blur(16px)', 
+                border: '1px solid rgba(255, 255, 255, 0.16)', 
                 boxShadow: '0 8px 30px rgba(0, 0, 0, 0.5)',
                 zIndex: 25,
                 whiteSpace: 'nowrap'
@@ -643,14 +813,13 @@ export default function AttendanceSystem({ students, onBack }) {
                     background: allMarkState === 'present' ? '#2e7d32' : allMarkState === 'absent' ? '#d32f2f' : '#616161',
                     color: '#fff', 
                     border: '1px solid rgba(255,255,255,0.25)', 
-                    padding: '0.55rem 1.2rem', 
-                    borderRadius: '20px', 
+                    padding: '0.35rem 0.85rem', 
+                    borderRadius: '16px', 
                     cursor: 'pointer', 
-                    fontSize: '0.85rem', 
+                    fontSize: '0.78rem', 
                     fontWeight: 600,
                     fontFamily: 'Montserrat, sans-serif',
-                    boxShadow: allMarkState === 'present' ? '0 0 14px rgba(46,125,50,0.5)' : allMarkState === 'absent' ? '0 0 14px rgba(211,47,47,0.5)' : 'none',
-                    transition: 'all 0.25s ease'
+                    transition: 'all 0.2s ease'
                   }}
                 >
                   Mark All {allMarkState === 'present' ? 'Present' : allMarkState === 'absent' ? 'Absent' : 'Clear'}
@@ -661,17 +830,16 @@ export default function AttendanceSystem({ students, onBack }) {
                     background: '#c62828', 
                     color: '#fff', 
                     border: '1px solid rgba(255,255,255,0.25)', 
-                    padding: '0.55rem 1.2rem', 
-                    borderRadius: '20px', 
+                    padding: '0.35rem 0.85rem', 
+                    borderRadius: '16px', 
                     cursor: 'pointer', 
-                    fontSize: '0.85rem', 
+                    fontSize: '0.78rem', 
                     fontWeight: 600,
                     fontFamily: 'Montserrat, sans-serif',
-                    boxShadow: '0 0 14px rgba(198,40,40,0.4)',
-                    transition: 'all 0.25s ease' 
+                    transition: 'all 0.2s ease' 
                   }}
                 >
-                  Mark Remaining Absent
+                  Remaining Absent
                 </button>
                 <button 
                   onClick={resetClassAttendance}
@@ -679,13 +847,13 @@ export default function AttendanceSystem({ students, onBack }) {
                     background: 'rgba(239, 68, 68, 0.25)', 
                     color: '#fca5a5', 
                     border: '1px solid rgba(239, 68, 68, 0.5)', 
-                    padding: '0.55rem 1.2rem', 
-                    borderRadius: '20px', 
+                    padding: '0.35rem 0.75rem', 
+                    borderRadius: '16px', 
                     cursor: 'pointer', 
-                    fontSize: '0.85rem', 
+                    fontSize: '0.78rem', 
                     fontWeight: 600,
                     fontFamily: 'Montserrat, sans-serif',
-                    transition: 'all 0.25s ease' 
+                    transition: 'all 0.2s ease' 
                   }}
                 >
                   Reset

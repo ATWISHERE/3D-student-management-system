@@ -4,6 +4,31 @@ import { OrbitControls, Text, Billboard, Float } from '@react-three/drei';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
 
+let sharedTargetTexture = null;
+function getSharedTargetTexture() {
+  if (!sharedTargetTexture && typeof document !== 'undefined') {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, 256, 256);
+    
+    const drawRing = (radius, color) => {
+      ctx.beginPath();
+      ctx.arc(128, 128, radius, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+    };
+
+    drawRing(120, '#ff1111');
+    drawRing(80, '#ffffff');
+    drawRing(40, '#ff1111');
+    
+    sharedTargetTexture = new THREE.CanvasTexture(canvas);
+  }
+  return sharedTargetTexture;
+}
+
 function TargetObject({ student, index, total, isPresent, isAbsent, onClick }) {
   const meshRef = useRef();
   const groupRef = useRef();
@@ -17,26 +42,7 @@ function TargetObject({ student, index, total, isPresent, isAbsent, onClick }) {
     return new THREE.Vector3((col - cols/2 + 0.5) * 5, (cols/2 - row - 0.5) * 5, (Math.random() - 0.5) * 5);
   }, [index, total]);
 
-  const texture = useMemo(() => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 512; canvas.height = 512;
-    const ctx = canvas.getContext('2d');
-    
-    // Background transparent
-    ctx.clearRect(0,0,512,512);
-    
-    // Draw concentric glowing rings
-    const drawRing = (radius, color) => {
-      ctx.beginPath(); ctx.arc(256, 256, radius, 0, Math.PI*2);
-      ctx.fillStyle = color; ctx.fill();
-    };
-
-    drawRing(240, '#ff1111');
-    drawRing(160, '#ffffff');
-    drawRing(80, '#ff1111');
-    
-    return new THREE.CanvasTexture(canvas);
-  }, []);
+  const texture = useMemo(() => getSharedTargetTexture(), []);
 
   useFrame((state, delta) => {
     if (groupRef.current && meshRef.current) {
@@ -69,7 +75,7 @@ function TargetObject({ student, index, total, isPresent, isAbsent, onClick }) {
           ref={meshRef}
           rotation={[Math.PI / 2, 0, 0]}
         >
-          <cylinderGeometry args={[1.5, 1.5, 0.2, 64]} />
+          <cylinderGeometry args={[1.5, 1.5, 0.2, 24]} />
           <meshStandardMaterial 
             color={isAbsent ? '#444444' : '#ffffff'} 
             emissive={emissiveColor}
@@ -94,13 +100,17 @@ function TargetObject({ student, index, total, isPresent, isAbsent, onClick }) {
   );
 }
 
-export default function TargetPracticeGame({ students, attendanceData, selectedClass, selectedClasses, selectedDate, setAttendanceStatus, onToggleAttendance, markRemainingAbsent }) {
+export default function TargetPracticeGame({ students, attendanceData, selectedClass, selectedClasses, selectedDate, setAttendanceStatus, onToggleAttendance, markRemainingAbsent, ecoMode = true }) {
   const toggleAttendance = setAttendanceStatus || onToggleAttendance;
   const getStudentClass = (s) => (s.Class ? `${s.Class} ${s.Section || ''}`.trim() : selectedClass);
 
   return (
     <div style={{ width: '100%', height: '100%', background: 'linear-gradient(to bottom, #111827, #030712)' }}>
-      <Canvas camera={{ position: [0, 0, 30], fov: 60 }}>
+      <Canvas 
+        camera={{ position: [0, 0, 30], fov: 60 }}
+        dpr={ecoMode ? 1 : [1, 1.5]}
+        gl={{ powerPreference: 'high-performance', antialias: !ecoMode }}
+      >
         <ambientLight intensity={1} />
         <directionalLight position={[0, 10, 10]} intensity={2} color="#ffffff" />
         <spotLight position={[0, 0, 20]} angle={0.5} penumbra={1} intensity={2} color="#ff3333" />
@@ -121,10 +131,12 @@ export default function TargetPracticeGame({ students, attendanceData, selectedC
           );
         })}
         
-        <EffectComposer disableNormalPass>
-          <Bloom luminanceThreshold={0.3} luminanceSmoothing={0.9} intensity={2.5} radius={0.8} />
-          <Vignette eskil={false} offset={0.1} darkness={1.1} />
-        </EffectComposer>
+        {!ecoMode && (
+          <EffectComposer disableNormalPass>
+            <Bloom luminanceThreshold={0.3} luminanceSmoothing={0.9} intensity={2.5} radius={0.8} />
+            <Vignette eskil={false} offset={0.1} darkness={1.1} />
+          </EffectComposer>
+        )}
 
         <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
       </Canvas>
