@@ -15,6 +15,7 @@ import {
 } from './utils/excelParser';
 import ATWLogo from './ATWLogo';
 import LogoPageTransition from './LogoPageTransition';
+import Cinematic3DLogoReveal from './Cinematic3DLogoReveal';
 import './index.css';
 
 function App() {
@@ -78,6 +79,9 @@ function App() {
   const handleTransitionComplete = () => {
     setTransitionState(prev => ({ ...prev, isActive: false }));
   };
+
+  // 3D Metallic Ribbon Reveal Cinematic Modal
+  const [show3DReveal, setShow3DReveal] = useState(false);
 
   // Reset page when filters change
   useEffect(() => {
@@ -512,7 +516,10 @@ function App() {
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
-            style={{ marginBottom: '1.2rem', display: 'flex', justifyContent: 'center' }}
+            whileHover={{ scale: 1.08 }}
+            onClick={() => setShow3DReveal(true)}
+            title="Click to experience the 3D Metallic Ribbon Reveal Animation ✨"
+            style={{ marginBottom: '1.2rem', display: 'flex', justifyContent: 'center', cursor: 'pointer' }}
           >
             <ATWLogo size={72} showText={false} isDark={false} />
           </motion.div>
@@ -806,30 +813,60 @@ function App() {
 
       </div>
 
-      {/* Floating Action Button for Attendance System */}
-      <motion.button 
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={() => navigateToPage('attendance')}
-        style={{
-          position: 'fixed',
-          bottom: '2rem',
-          right: '2rem',
-          background: 'var(--text-accent)',
-          color: '#fff',
-          padding: '1rem 2rem',
-          borderRadius: '30px',
-          border: 'none',
-          cursor: 'pointer',
-          fontFamily: 'Cormorant Garamond',
-          fontSize: '1.2rem',
-          fontStyle: 'italic',
-          boxShadow: '0 10px 25px rgba(153, 127, 99, 0.4)',
-          zIndex: 100
-        }}
-      >
-        Take Attendance ✨
-      </motion.button>
+      {/* Floating Action Buttons */}
+      <div style={{ position: 'fixed', bottom: '2rem', right: '2rem', display: 'flex', gap: '0.8rem', zIndex: 100 }}>
+        <motion.button 
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setShow3DReveal(true)}
+          title="Watch the Cinematic 3D Metallic Ribbon Logo Reveal"
+          style={{
+            background: 'linear-gradient(135deg, #18120c, #0a0806)',
+            color: '#ffd700',
+            padding: '0.85rem 1.4rem',
+            borderRadius: '30px',
+            border: '1.5px solid rgba(255, 215, 0, 0.45)',
+            cursor: 'pointer',
+            fontFamily: 'Montserrat, sans-serif',
+            fontSize: '0.85rem',
+            fontWeight: 700,
+            boxShadow: '0 8px 25px rgba(0, 0, 0, 0.6), 0 0 15px rgba(245, 158, 11, 0.25)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.45rem'
+          }}
+        >
+          <span>✨</span>
+          <span>3D Logo Reveal</span>
+        </motion.button>
+
+        <motion.button 
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => navigateToPage('attendance')}
+          style={{
+            background: 'var(--text-accent)',
+            color: '#fff',
+            padding: '1rem 2rem',
+            borderRadius: '30px',
+            border: 'none',
+            cursor: 'pointer',
+            fontFamily: 'Cormorant Garamond',
+            fontSize: '1.2rem',
+            fontStyle: 'italic',
+            boxShadow: '0 10px 25px rgba(153, 127, 99, 0.4)'
+          }}
+        >
+          Take Attendance ✨
+        </motion.button>
+      </div>
+
+      {/* Cinematic 3D Metallic Ribbon Logo Reveal Fullscreen Overlay */}
+      {show3DReveal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 999999 }}>
+          <Cinematic3DLogoReveal onClose={() => setShow3DReveal(false)} />
+        </div>
+      )}
 
       {/* Fee Modal Overlay */}
       {selectedStudent && (

@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ATW — Cinematic 3D Metallic Ribbon Logo Reveal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body, html {
+      width: 100%;
+      height: 100%;
+      background: #000000;
+      color: #f8fafc;
+      font-family: 'Montserrat', sans-serif;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    #webgl-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      z-index: 1;
+    }
+
+    /* Cinematic Letterbox Bars (2.39:1 Anamorphic Format) */
+    .letterbox-top, .letterbox-bottom {
+      position: absolute;
+      left: 0;
+      width: 100%;
+      height: 4.5vh;
+      background: #000000;
+      z-index: 20;
+      pointer-events: none;
+      transition: height 0.6s ease;
+    }
+    .letterbox-top { top: 0; border-bottom: 1px solid rgba(255, 215, 0, 0.08); }
+    .letterbox-bottom { bottom: 0; border-top: 1px solid rgba(255, 215, 0, 0.08); }
+
+    /* Final Typography Overlay */
+    .brand-overlay {
+      position: absolute;
+      bottom: 9vh;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.35rem;
+      z-index: 25;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1), transform 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .brand-overlay.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .brand-name {
+      font-family: 'Cinzel', serif;
+      font-size: 1.6rem;
+      font-weight: 800;
+      letter-spacing: 0.38em;
+      background: linear-gradient(135deg, #ffffff 0%, #fef08a 40%, #ffd700 70%, #d97706 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 4px 25px rgba(245, 158, 11, 0.35);
+    }
+
+    .brand-sub {
+      font-size: 0.72rem;
+      letter-spacing: 0.3em;
+      color: #a8a29e;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+
+    /* Floating UI Controls */
+    .controls-bar {
+      position: absolute;
+      top: 6vh;
+      right: 2.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      z-index: 30;
+    }
+
+    .ctrl-btn {
+      background: rgba(18, 14, 10, 0.75);
+      border: 1px solid rgba(255, 215, 0, 0.28);
+      color: #f5f5f4;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.5rem 1.1rem;
+      border-radius: 25px;
+      cursor: pointer;
+      backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: all 0.25s ease;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.8);
+    }
+    .ctrl-btn:hover {
+      background: rgba(35, 26, 18, 0.95);
+      border-color: #ffd700;
+      color: #ffd700;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(245, 158, 11, 0.35);
+    }
+
+    /* Timeline Phase Status Pill (Bottom Left) */
+    .timeline-pill {
+      position: absolute;
+      bottom: 6vh;
+      left: 2.5rem;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      background: rgba(18, 14, 10, 0.7);
+      border: 1px solid rgba(255, 215, 0, 0.2);
+      border-radius: 20px;
+      padding: 0.35rem 0.95rem;
+      font-size: 0.72rem;
+      color: #d6d3d1;
+      backdrop-filter: blur(10px);
+    }
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #ffd700;
+      box-shadow: 0 0 8px #ffd700;
+      animation: pulseDot 1.5s infinite alternate;
+    }
+    @keyframes pulseDot {
+      0% { opacity: 0.4; transform: scale(0.85); }
+      100% { opacity: 1; transform: scale(1.15); }
+    }
+
+    /* Lens Flare Sweep Flash Canvas */
+    #flare-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 15;
+      opacity: 0;
+      mix-blend-mode: screen;
+      transition: opacity 0.4s ease;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+</head>
+<body>
+  <!-- Cinematic Aspect Format Bars -->
+  <div class="letterbox-top"></div>
+  <div class="letterbox-bottom"></div>
+
+  <!-- Three.js Canvas -->
+  <canvas id="webgl-canvas"></canvas>
+  <canvas id="flare-overlay"></canvas>
+
+  <!-- Timeline Phase Status -->
+  <div class="timeline-pill">
+    <div class="status-dot"></div>
+    <span id="phaseText">Phase 1: Darkness & Emergence</span>
+  </div>
+
+  <!-- UI Controls -->
+  <div class="controls-bar">
+    <button id="replayBtn" class="ctrl-btn">
+      <span>▶</span> Replay Reveal
+    </button>
+    <button id="audioBtn" class="ctrl-btn">
+      <span>🔊</span> Audio: ON
+    </button>
+    <button id="fullscreenBtn" class="ctrl-btn">
+      <span>⛶</span> Fullscreen
+    </button>
+  </div>
+
+  <!-- Final Brand Overlay -->
+  <div id="brandOverlay" class="brand-overlay">
+    <div class="brand-name">ABDUL TARIQUE WARSI</div>
+    <div class="brand-sub">ATW • METALLIC MONOGRAM REVEAL</div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. HIGH-PRECISION AUDIO SYNTHESIZER (ZERO-LATENCY WEB AUDIO API)
+    // =========================================================================
+    let audioCtx = null;
+    let soundEnabled = true;
+
+    function initAudio() {
+      if (!audioCtx) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) audioCtx = new AudioContext();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    function playCinematicSubBass() {
+      if (!soundEnabled || !audioCtx) return;
+      try {
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(45, now);
+        osc.frequency.exponentialRampToValueAtTime(32, now + 3.5);
+
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.18, now + 1.2);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 4.0);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 4.0);
+      } catch (e) {}
+    }
+
+    function playRibbonDrawSound(progress) {
+      if (!soundEnabled || !audioCtx) return;
+      try {
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        // Pitch rises smoothly as the 3D ribbons weave
+        osc.frequency.setValueAtTime(180 + progress * 240, now);
+        osc.frequency.exponentialRampToValueAtTime(220 + progress * 300, now + 0.12);
+
+        gain.gain.setValueAtTime(0.035, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.12);
+      } catch (e) {}
+    }
+
+    function playSignatureLightSweepSound() {
+      if (!soundEnabled || !audioCtx) return;
+      try {
+        const now = audioCtx.currentTime;
+        // 1. High shimmering crystal harmonic chord (A Major 9th spread)
+        const notes = [440, 554.37, 659.25, 830.61, 1108.73, 1318.51];
+        notes.forEach((freq, i) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = i % 2 === 0 ? 'sine' : 'triangle';
+          osc.frequency.setValueAtTime(freq, now);
+          osc.frequency.exponentialRampToValueAtTime(freq * 1.02, now + 2.8);
+
+          gain.gain.setValueAtTime(0.06 / (i + 1), now);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 2.8);
+
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 2.8);
+        });
+
+        // 2. Powerful deep sub-impact
+        const sub = audioCtx.createOscillator();
+        const subGain = audioCtx.createGain();
+        sub.type = 'sine';
+        sub.frequency.setValueAtTime(65, now);
+        sub.frequency.exponentialRampToValueAtTime(28, now + 2.0);
+        subGain.gain.setValueAtTime(0.22, now);
+        subGain.gain.exponentialRampToValueAtTime(0.001, now + 2.0);
+        sub.connect(subGain);
+        subGain.connect(audioCtx.destination);
+        sub.start(now);
+        sub.stop(now + 2.0);
+      } catch (e) {}
+    }
+
+    // =========================================================================
+    // 2. THREE.JS STUDIO SETUP & PROCEDURAL HDR REFLECTION MAP
+    // =========================================================================
+    const canvas = document.getElementById('webgl-canvas');
+    const renderer = new THREE.WebGLRenderer({
+      canvas: canvas,
+      antialias: true,
+      powerPreference: 'high-performance'
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    if (THREE.SRGBColorSpace) {
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+    } else if (THREE.sRGBEncoding) {
+      renderer.outputEncoding = THREE.sRGBEncoding;
+    }
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000000);
+
+    const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 0, 11.5);
+    camera.lookAt(0, 0, 0);
+
+    // Procedural Studio Softbox Reflection Environment Map (Matching reference images)
+    function generateStudioEnvironment() {
+      const size = 512;
+      const c = document.createElement('canvas');
+      c.width = size;
+      c.height = size / 2;
+      const ctx = c.getContext('2d');
+
+      // Deep dark background
+      ctx.fillStyle = '#060608';
+      ctx.fillRect(0, 0, size, size / 2);
+
+      // Softbox 1: Overhead elongated golden light
+      const g1 = ctx.createLinearGradient(0, 0, 0, size / 4);
+      g1.addColorStop(0, '#ffffff');
+      g1.addColorStop(0.3, '#fff4cc');
+      g1.addColorStop(0.8, '#f59e0b');
+      g1.addColorStop(1, 'transparent');
+      ctx.fillStyle = g1;
+      ctx.fillRect(size * 0.2, 0, size * 0.6, size / 4);
+
+      // Softbox 2: Right rim strip (champagne-gold reflection)
+      const g2 = ctx.createRadialGradient(size * 0.85, size * 0.25, 10, size * 0.85, size * 0.25, 120);
+      g2.addColorStop(0, '#ffffff');
+      g2.addColorStop(0.5, '#ffd700');
+      g2.addColorStop(1, 'transparent');
+      ctx.fillStyle = g2;
+      ctx.fillRect(size * 0.7, 0, size * 0.3, size / 2);
+
+      // Softbox 3: Left warm bronze bounce
+      const g3 = ctx.createRadialGradient(size * 0.15, size * 0.35, 10, size * 0.15, size * 0.35, 140);
+      g3.addColorStop(0, '#f59e0b');
+      g3.addColorStop(0.6, '#78350f');
+      g3.addColorStop(1, 'transparent');
+      ctx.fillStyle = g3;
+      ctx.fillRect(0, 0, size * 0.35, size / 2);
+
+      const texture = new THREE.CanvasTexture(c);
+      texture.mapping = THREE.EquirectangularReflectionMapping;
+      return texture;
+    }
+    const envMap = generateStudioEnvironment();
+    scene.environment = envMap;
+
+    // Studio Lights
+    const keyLight = new THREE.DirectionalLight(0xfff3d0, 2.8);
+    keyLight.position.set(4, 6, 6);
+    scene.add(keyLight);
+
+    const rimLight = new THREE.DirectionalLight(0xffffff, 2.2);
+    rimLight.position.set(-6, -3, 4);
+    scene.add(rimLight);
+
+    const bronzeFill = new THREE.DirectionalLight(0x92400e, 1.6);
+    bronzeFill.position.set(0, -6, -3);
+    scene.add(bronzeFill);
+
+    const ambientLight = new THREE.AmbientLight(0x221a10, 0.8);
+    scene.add(ambientLight);
+
+    // Signature Traveling Light Sweep Spotlight (Phase 5)
+    const sweepLight = new THREE.SpotLight(0xffe680, 0, 18, Math.PI / 6, 0.4, 1.2);
+    sweepLight.position.set(-6, 0, 6);
+    scene.add(sweepLight);
+    scene.add(sweepLight.target);
+
+    // =========================================================================
+    // 3. PHYSICAL 3D RIBBON GEOMETRY & MATERIALS (MATCHING atw_logo_final.jpg)
+    // =========================================================================
+
+    // Top Face: Polished Champagne Gold
+    const goldMaterial = new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color(0xf6d365),
+      emissive: new THREE.Color(0x3a2205),
+      metalness: 0.94,
+      roughness: 0.14,
+      clearcoat: 0.85,
+      clearcoatRoughness: 0.1,
+      reflectivity: 0.95,
+      envMap: envMap,
+      envMapIntensity: 1.8
+    });
+
+    // Sidewall: Warm Mocha Bronze / Copper
+    const bronzeMaterial = new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color(0x92400e),
+      emissive: new THREE.Color(0x200a02),
+      metalness: 0.88,
+      roughness: 0.28,
+      clearcoat: 0.4,
+      reflectivity: 0.85,
+      envMap: envMap,
+      envMapIntensity: 1.4
+    });
+
+    // Leading Edge Traveling Spark Material
+    const sparkHeadMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffff
+    });
+
+    // Exact Interwoven Spline Paths derived from atw_logo_final.jpg
+    const ribbonPaths = [
+      // Ribbon 1: A-Leg & Peak (Left angular pillar of A)
+      [
+        new THREE.Vector3(-3.25, -1.85, 0.0),
+        new THREE.Vector3(-2.65, -0.45, 0.06),
+        new THREE.Vector3(-2.05, 0.95, 0.12),
+        new THREE.Vector3(-1.42, 2.32, 0.18), // Peak of A
+        new THREE.Vector3(-1.08, 1.52, 0.22),
+        new THREE.Vector3(-0.62, 0.52, 0.14)
+      ],
+      // Ribbon 2: Upper T-Bar & Grand 180° Curl into W
+      [
+        new THREE.Vector3(-1.12, 1.92, 0.05),
+        new THREE.Vector3(0.28, 1.92, 0.05),
+        new THREE.Vector3(1.68, 1.92, 0.05),
+        new THREE.Vector3(2.48, 1.88, 0.0),
+        new THREE.Vector3(3.08, 1.38, -0.16), // Outer grand curve
+        new THREE.Vector3(2.96, 0.46, -0.22), // Descending loop
+        new THREE.Vector3(2.46, -0.52, 0.05)  // Merging into W
+      ],
+      // Ribbon 3: S-Curve Crossbar of A weaving under peak and into central T-stem
+      [
+        new THREE.Vector3(-3.02, -0.72, 0.25),
+        new THREE.Vector3(-2.22, -0.32, 0.20),
+        new THREE.Vector3(-1.52, -0.12, 0.12), // Weaving across A
+        new THREE.Vector3(-0.82, 0.26, 0.06),  // Under A-leg
+        new THREE.Vector3(-0.22, 0.92, 0.14),
+        new THREE.Vector3(0.12, 1.52, 0.08)     // Into T
+      ],
+      // Ribbon 4: The Flowing W (Twin valleys & center peak)
+      [
+        new THREE.Vector3(2.46, -0.52, 0.05),
+        new THREE.Vector3(2.02, -1.36, 0.15),
+        new THREE.Vector3(1.52, -1.86, 0.24), // Right valley of W
+        new THREE.Vector3(1.12, -1.32, 0.30),
+        new THREE.Vector3(0.88, 0.28, 0.36),  // Center peak of W
+        new THREE.Vector3(0.48, -0.82, 0.28),
+        new THREE.Vector3(0.08, -1.86, 0.22), // Left valley of W
+        new THREE.Vector3(-0.42, -1.22, 0.10),
+        new THREE.Vector3(-0.86, -0.36, -0.06) // Under stem
+      ]
+    ];
+
+    // Generate Custom Physical 3D Extruded Ribbon Mesh with Distinct Gold Face and Bronze Sidewalls
+    function createRibbonBand(pathPoints, width = 0.52, thickness = 0.15) {
+      const curve = new THREE.CatmullRomCurve3(pathPoints);
+      curve.curveType = 'centripetal';
+      const steps = 180;
+      const points = curve.getPoints(steps);
+      const frames = curve.computeFrenetFrames(steps, false);
+
+      const positions = [];
+      const normals = [];
+      const uvs = [];
+      const indices = [];
+
+      // We create a dual-material mesh: Group 0 = Top Gold Face, Group 1 = Bronze Sides/Bottom
+      for (let i = 0; i <= steps; i++) {
+        const p = points[i];
+        const N = frames.normals[i];
+        const B = frames.binormals[i];
+        const u = i / steps;
+
+        const hw = width * 0.5;
+        const ht = thickness * 0.5;
+
+        // 4 corners of ribbon cross section
+        const v0 = new THREE.Vector3().copy(p).addScaledVector(B, hw).addScaledVector(N, ht);  // Top Right
+        const v1 = new THREE.Vector3().copy(p).addScaledVector(B, -hw).addScaledVector(N, ht); // Top Left
+        const v2 = new THREE.Vector3().copy(p).addScaledVector(B, -hw).addScaledVector(N, -ht);// Bottom Left
+        const v3 = new THREE.Vector3().copy(p).addScaledVector(B, hw).addScaledVector(N, -ht); // Bottom Right
+
+        positions.push(
+          v0.x, v0.y, v0.z,
+          v1.x, v1.y, v1.z,
+          v2.x, v2.y, v2.z,
+          v3.x, v3.y, v3.z
+        );
+
+        // Surface Normals
+        normals.push(
+          N.x, N.y, N.z,
+          N.x, N.y, N.z,
+          -N.x, -N.y, -N.z,
+          -N.x, -N.y, -N.z
+        );
+
+        uvs.push(
+          u, 1,
+          u, 0,
+          u, 0,
+          u, 1
+        );
+      }
+
+      // Indices for Top Face (Gold Material - Group 0)
+      const goldIndices = [];
+      const bronzeIndices = [];
+
+      for (let i = 0; i < steps; i++) {
+        const base = i * 4;
+        const next = (i + 1) * 4;
+
+        // Top Gold Face: v0, v1, next_v0, next_v1
+        goldIndices.push(base, next, next + 1);
+        goldIndices.push(base, next + 1, base + 1);
+
+        // Right Sidewall: v3, v0, next_v3, next_v0
+        bronzeIndices.push(base + 3, next + 3, next);
+        bronzeIndices.push(base + 3, next, base);
+
+        // Left Sidewall: v1, v2, next_v1, next_v2
+        bronzeIndices.push(base + 1, next + 1, next + 2);
+        bronzeIndices.push(base + 1, next + 2, base + 2);
+
+        // Bottom Underside: v2, v3, next_v2, next_v3
+        bronzeIndices.push(base + 2, next + 2, next + 3);
+        bronzeIndices.push(base + 2, next + 3, base + 3);
+      }
+
+      const allIndices = [...goldIndices, ...bronzeIndices];
+
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+      geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      geometry.setIndex(allIndices);
+
+      // Define Groups for Multi-Material Rendering
+      geometry.addGroup(0, goldIndices.length, 0); // Gold
+      geometry.addGroup(goldIndices.length, bronzeIndices.length, 1); // Bronze
+
+      // Keep original max draw range for animated progressive draw-on
+      const totalTris = allIndices.length;
+      geometry.setDrawRange(0, 0); // Initially invisible in darkness
+
+      const mesh = new THREE.Mesh(geometry, [goldMaterial, bronzeMaterial]);
+
+      // Spark Orb at leading tip
+      const sparkGeo = new THREE.SphereGeometry(0.12, 16, 16);
+      const sparkMesh = new THREE.Mesh(sparkGeo, sparkHeadMaterial);
+      sparkMesh.visible = false;
+      scene.add(sparkMesh);
+
+      return {
+        mesh,
+        curve,
+        points,
+        totalTris,
+        sparkMesh,
+        progress: 0
+      };
+    }
+
+    const ribbonObjects = ribbonPaths.map((p, idx) => {
+      const band = createRibbonBand(p, idx === 0 ? 0.54 : 0.50, idx === 1 ? 0.16 : 0.14);
+      scene.add(band.mesh);
+      return band;
+    });
+
+    // Update ribbon draw-range dynamically based on progress (0 to 1)
+    function setRibbonProgress(band, progress) {
+      band.progress = progress;
+      const count = Math.floor(band.totalTris * progress);
+      // Align to multiples of 3 for valid triangles
+      band.mesh.geometry.setDrawRange(0, count - (count % 3));
+
+      // Position traveling specular tip spark
+      if (progress > 0.02 && progress < 0.98) {
+        band.sparkMesh.visible = true;
+        const pt = band.curve.getPointAt(Math.min(1, progress));
+        band.sparkMesh.position.copy(pt);
+      } else {
+        band.sparkMesh.visible = false;
+      }
+    }
+
+    // =========================================================================
+    // 4. EXACT ANIMATION TIMELINE (0.0s to 8.0s) SEQUENCED VIA GSAP
+    // =========================================================================
+    const phaseText = document.getElementById('phaseText');
+    const brandOverlay = document.getElementById('brandOverlay');
+    const flareOverlay = document.getElementById('flare-overlay');
+    const flareCtx = flareOverlay.getContext('2d');
+
+    function resizeFlare() {
+      flareOverlay.width = window.innerWidth;
+      flareOverlay.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeFlare);
+    resizeFlare();
+
+    function drawSpecularFlare(x, intensity) {
+      flareCtx.clearRect(0, 0, flareOverlay.width, flareOverlay.height);
+      if (intensity <= 0.01) return;
+
+      const y = flareOverlay.height * 0.5;
+      const cx = (x + 4.5) / 9.0 * flareOverlay.width;
+
+      // Restrained anamorphic lens flare streak
+      const grad = flareCtx.createRadialGradient(cx, y, 5, cx, y, 320);
+      grad.addColorStop(0, `rgba(255, 255, 230, ${intensity * 0.85})`);
+      grad.addColorStop(0.2, `rgba(255, 215, 0, ${intensity * 0.45})`);
+      grad.addColorStop(0.6, `rgba(217, 119, 6, ${intensity * 0.15})`);
+      grad.addColorStop(1, 'transparent');
+
+      flareCtx.fillStyle = grad;
+      flareCtx.fillRect(cx - 350, y - 180, 700, 360);
+
+      // Horizontal anamorphic laser beam
+      const beam = flareCtx.createLinearGradient(cx - 500, y, cx + 500, y);
+      beam.addColorStop(0, 'transparent');
+      beam.addColorStop(0.5, `rgba(255, 250, 200, ${intensity * 0.9})`);
+      beam.addColorStop(1, 'transparent');
+      flareCtx.fillStyle = beam;
+      flareCtx.fillRect(cx - 500, y - 2, 1000, 4);
+    }
+
+    let masterTimeline = gsap.timeline({ paused: true });
+
+    function buildTimeline() {
+      masterTimeline.kill();
+      masterTimeline = gsap.timeline({
+        onComplete: () => {
+          phaseText.textContent = "Phase 6: Luxury Final Logo Hold";
+        }
+      });
+
+      // Reset
+      ribbonObjects.forEach(b => setRibbonProgress(b, 0));
+      brandOverlay.classList.remove('visible');
+      camera.position.set(0, 0, 11.5);
+      sweepLight.intensity = 0;
+      flareOverlay.style.opacity = '0';
+      drawSpecularFlare(0, 0);
+
+      // --- PHASE 1: Darkness (0.0s - 0.8s) ---
+      masterTimeline.to({}, {
+        duration: 0.8,
+        onStart: () => {
+          phaseText.textContent = "Phase 1: Pure Darkness";
+          playCinematicSubBass();
+        }
+      });
+
+      // --- PHASE 2: First Ribbon Emergence (0.8s - 2.2s) ---
+      // Thin champagne-gold metallic strip emerges along the A-leg
+      const ribbon1Obj = { p: 0 };
+      masterTimeline.to(ribbon1Obj, {
+        p: 1,
+        duration: 1.4,
+        ease: "power2.inOut",
+        onStart: () => {
+          phaseText.textContent = "Phase 2: First Ribbon Emergence (A-Pillar)";
+        },
+        onUpdate: () => {
+          setRibbonProgress(ribbonObjects[0], ribbon1Obj.p);
+          if (Math.random() < 0.28) playRibbonDrawSound(ribbon1Obj.p * 0.3);
+        }
+      }, 0.8);
+
+      // --- PHASE 3: Ribbon Weaving & Monogram Construction (2.0s - 5.4s) ---
+      // Ribbons 2, 3, 4 sequentially weave and intertwine
+      const ribbon2Obj = { p: 0 };
+      const ribbon3Obj = { p: 0 };
+      const ribbon4Obj = { p: 0 };
+
+      masterTimeline.to(ribbon2Obj, {
+        p: 1,
+        duration: 1.8,
+        ease: "power2.inOut",
+        onStart: () => {
+          phaseText.textContent = "Phase 3: Interweaving 3D Monogram Ribbons";
+        },
+        onUpdate: () => {
+          setRibbonProgress(ribbonObjects[1], ribbon2Obj.p);
+          if (Math.random() < 0.25) playRibbonDrawSound(0.3 + ribbon2Obj.p * 0.25);
+        }
+      }, 2.0);
+
+      masterTimeline.to(ribbon3Obj, {
+        p: 1,
+        duration: 1.6,
+        ease: "power2.inOut",
+        onUpdate: () => {
+          setRibbonProgress(ribbonObjects[2], ribbon3Obj.p);
+          if (Math.random() < 0.25) playRibbonDrawSound(0.55 + ribbon3Obj.p * 0.2);
+        }
+      }, 2.7);
+
+      masterTimeline.to(ribbon4Obj, {
+        p: 1,
+        duration: 2.0,
+        ease: "power2.inOut",
+        onUpdate: () => {
+          setRibbonProgress(ribbonObjects[3], ribbon4Obj.p);
+          if (Math.random() < 0.25) playRibbonDrawSound(0.75 + ribbon4Obj.p * 0.25);
+        }
+      }, 3.4);
+
+      // Subtle camera settle
+      masterTimeline.to(camera.position, {
+        z: 10.8,
+        duration: 3.5,
+        ease: "power1.out"
+      }, 2.0);
+
+      // --- PHASE 4: Final Alignment & Metallic Polish (5.4s - 6.5s) ---
+      masterTimeline.to({}, {
+        duration: 1.1,
+        onStart: () => {
+          phaseText.textContent = "Phase 4: Alignment & Metallic Polish";
+          ribbonObjects.forEach(b => setRibbonProgress(b, 1.0));
+        }
+      }, 5.4);
+
+      // --- PHASE 5: Signature Golden Flash & Light Sweep (6.5s - 7.3s) ---
+      const sweepObj = { x: -5.0, flare: 0 };
+      masterTimeline.to(sweepObj, {
+        x: 5.0,
+        flare: 1.0,
+        duration: 0.8,
+        ease: "power1.inOut",
+        onStart: () => {
+          phaseText.textContent = "Phase 5: Signature Golden Light Sweep";
+          playSignatureLightSweepSound();
+          flareOverlay.style.opacity = '1';
+        },
+        onUpdate: () => {
+          sweepLight.position.x = sweepObj.x;
+          sweepLight.target.position.x = sweepObj.x;
+          sweepLight.intensity = Math.sin((sweepObj.x + 5.0) / 10.0 * Math.PI) * 7.5;
+
+          const flareIntensity = Math.sin((sweepObj.x + 5.0) / 10.0 * Math.PI);
+          drawSpecularFlare(sweepObj.x, flareIntensity);
+        },
+        onComplete: () => {
+          sweepLight.intensity = 0;
+          flareOverlay.style.opacity = '0';
+          drawSpecularFlare(0, 0);
+        }
+      }, 6.5);
+
+      // --- PHASE 6: Luxury Final Logo Hold (7.3s - 8.0s+) ---
+      masterTimeline.to({}, {
+        duration: 0.7,
+        onStart: () => {
+          phaseText.textContent = "Phase 6: Luxury Final Logo Hold";
+          brandOverlay.classList.add('visible');
+        }
+      }, 7.3);
+    }
+
+    // =========================================================================
+    // 5. RENDER LOOP & INTERACTION CONTROLS
+    // =========================================================================
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      resizeFlare();
+    }
+    window.addEventListener('resize', onWindowResize);
+
+    // Subtle breathing rotation during hold phase
+    let clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      const elapsed = clock.getElapsedTime();
+
+      // Ultra-subtle studio light drift for dynamic reflections
+      keyLight.position.x = 4 + Math.sin(elapsed * 0.6) * 0.8;
+      keyLight.position.y = 6 + Math.cos(elapsed * 0.4) * 0.6;
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // Start Timeline
+    function startReveal() {
+      initAudio();
+      buildTimeline();
+      masterTimeline.restart();
+    }
+
+    // Bind Controls
+    document.getElementById('replayBtn').addEventListener('click', () => {
+      startReveal();
+    });
+
+    const audioBtn = document.getElementById('audioBtn');
+    audioBtn.addEventListener('click', () => {
+      soundEnabled = !soundEnabled;
+      audioBtn.innerHTML = soundEnabled ? '<span>🔊</span> Audio: ON' : '<span>🔇</span> Audio: OFF';
+      if (soundEnabled) initAudio();
+    });
+
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
+    fullscreenBtn.addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    });
+
+    // Auto-play on window load with user gesture fallback
+    window.addEventListener('load', () => {
+      setTimeout(startReveal, 400);
+    });
+    window.addEventListener('click', () => initAudio(), { once: true });
+  </script>
+</body>
+</html>

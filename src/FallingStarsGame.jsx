@@ -330,15 +330,6 @@ function BoyBombIgniter({ action, activeStudent, studentColor }) {
 
       {/* Interactive Animated SVG Scene with Boy Bending and Igniting Firecracker Bomb */}
       <svg width="210" height="175" viewBox="0 0 210 175" fill="none" style={{ overflow: 'visible' }}>
-        <defs>
-          <filter id="emberGlow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="3" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
 
         {/* Ground Surface Shadow */}
         <ellipse cx="105" cy="165" rx="90" ry="10" fill="rgba(0,0,0,0.5)" />
@@ -357,11 +348,12 @@ function BoyBombIgniter({ action, activeStudent, studentColor }) {
           <polygon points="56,130 60,118 64,130" fill="#f59e0b" />
           <path d="M 60 120 Q 56 112 50 114" stroke="#e2e8f0" strokeWidth="2" strokeLinecap="round" fill="none" />
 
-          {/* Sizzling Fuse Flame & Sparks when Igniting */}
+          {/* Sizzling Fuse Flame & Sparks when Igniting (Smart Board Zero-Filter Rendering) */}
           {isIgniting && (
             <g transform="translate(50, 114)">
-              <circle cx="0" cy="0" r="4.5" fill="#ffffff" filter="url(#emberGlow)" />
-              <circle cx="0" cy="0" r="7" fill="#ffaa00" opacity="0.8" />
+              <circle cx="0" cy="0" r="8" fill="#ffd700" opacity="0.3" />
+              <circle cx="0" cy="0" r="5" fill="#ffaa00" opacity="0.75" />
+              <circle cx="0" cy="0" r="2.5" fill="#ffffff" />
               <circle cx="-3" cy="-4" r="1.5" fill="#ffd700" />
               <circle cx="4" cy="-5" r="1.5" fill="#ff4400" />
               <circle cx="-5" cy="2" r="1" fill="#ffff00" />
@@ -493,19 +485,25 @@ function BoyBombIgniter({ action, activeStudent, studentColor }) {
                 strokeLinecap="round" 
               />
 
-              {/* Glowing Ember Spark at the tip of the stick */}
+              {/* Glowing Ember Spark at the tip of the stick (Fast Zero-Filter Halos) */}
               <circle 
                 cx={isBending ? "51" : (isWatching ? "74" : "65")} 
                 cy={isBending ? "115" : (isWatching ? "67" : "132")} 
-                r={isBending ? "4.5" : "3"} 
+                r={isBending ? "6.5" : "4.5"} 
                 fill="#ff5500" 
-                filter="url(#emberGlow)" 
+                opacity="0.45"
               />
               <circle 
                 cx={isBending ? "51" : (isWatching ? "74" : "65")} 
                 cy={isBending ? "115" : (isWatching ? "67" : "132")} 
-                r="1.8" 
-                fill="#ffffaa" 
+                r={isBending ? "3.5" : "2.2"} 
+                fill="#ffaa00" 
+              />
+              <circle 
+                cx={isBending ? "51" : (isWatching ? "74" : "65")} 
+                cy={isBending ? "115" : (isWatching ? "67" : "132")} 
+                r="1.4" 
+                fill="#ffffdd" 
               />
             </g>
           </g>
@@ -591,24 +589,45 @@ export default function FallingStarsGame({
     return list;
   }, [students, attendanceData, selectedDate, selectedClass]);
 
-  // Main 2D Animation Loop (Optimized for smooth 60 FPS on any device)
+  const isLaunchingRef = useRef(false);
+
+  // Main 2D Animation Loop (Optimized with Smart Board Anti-Hang Resolution Scaling)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d', { alpha: false });
     let animationFrameId;
+    let lastTime = performance.now();
 
     const handleResize = () => {
       const rect = containerRef.current?.getBoundingClientRect();
-      if (rect) {
-        canvas.width = Math.floor(rect.width);
-        canvas.height = Math.floor(rect.height);
+      if (rect && rect.width > 0 && rect.height > 0) {
+        // SMART BOARD ANTI-HANG ARCHITECTURE:
+        // Smart boards run 4K UHD (3840x2160) on low-power ARM/Celeron chipsets.
+        // Clearing & filling 8.3 million pixels every frame causes GPU bus lockups (hangs).
+        // By scaling the internal rendering buffer to max 1280x720 (or 1024x576 in Ultra-Light),
+        // we reduce GPU fill-load by 89%, while CSS width:100% stretches it flawlessly!
+        const maxW = effectiveUltraLight ? 1024 : 1280;
+        const maxH = effectiveUltraLight ? 576 : 720;
+        const scale = Math.min(1, maxW / rect.width, maxH / rect.height);
+
+        canvas.width = Math.floor(rect.width * scale);
+        canvas.height = Math.floor(rect.height * scale);
       }
     };
     handleResize();
     window.addEventListener('resize', handleResize);
 
-    const render = () => {
+    const render = (currentTime) => {
+      // Smart Board Thermal & Background Freeze Guard:
+      // If frame drops or tab lags (>100ms), avoid queuing backlog
+      const elapsed = currentTime - lastTime;
+      lastTime = currentTime;
+      if (elapsed > 120) {
+        animationFrameId = requestAnimationFrame(render);
+        return;
+      }
+
       // 1. Semi-transparent black clear to produce natural long-exposure glowing comet trails!
       ctx.globalCompositeOperation = 'source-over';
       ctx.fillStyle = 'rgba(6, 8, 20, 0.22)';
@@ -679,10 +698,14 @@ export default function FallingStarsGame({
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener('resize', handleResize);
     };
-  }, []);
+  }, [effectiveUltraLight]);
 
-  // Launch Firecracker for a Student
+  // Launch Firecracker for a Student (Smart Board multi-touch debounced)
   const handleLaunch = (student, index) => {
+    if (isLaunchingRef.current) return;
+    isLaunchingRef.current = true;
+    setTimeout(() => { isLaunchingRef.current = false; }, 450);
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -698,9 +721,9 @@ export default function FallingStarsGame({
       setBoyAction('igniting');
       playFirecrackerLaunch();
 
-      // Launch coordinates: From the bomb on ground
-      const startX = canvas.width - 150;
-      const startY = canvas.height - 110;
+      // Launch coordinates: scaled from internal canvas size
+      const startX = canvas.width - (canvas.width * 0.12);
+      const startY = canvas.height - (canvas.height * 0.14);
 
       // Target apex: Random pleasant sky location
       const targetX = canvas.width * 0.12 + Math.random() * (canvas.width * 0.65);
@@ -718,8 +741,8 @@ export default function FallingStarsGame({
         // Shockwave flash ring
         shockwavesRef.current.push(new CanvasShockwave(apexX, apexY, rocketColor.hex));
 
-        // High-Density Sparks: Ultra-Light uses 160 high-impact sparks; standard uses 360
-        const sparkCount = effectiveUltraLight ? 160 : 360;
+        // High-Density Sparks: Ultra-Light uses 140 high-impact sparks; standard uses 320
+        const sparkCount = effectiveUltraLight ? 140 : 320;
         for (let i = 0; i < sparkCount; i++) {
           const rand = Math.random();
           const type = rand < 0.65 ? 'spark' : (rand < 0.90 ? 'willow' : 'crackler');
