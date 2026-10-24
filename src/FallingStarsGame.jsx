@@ -57,19 +57,19 @@ export function getStudentFirecrackerColor(index) {
   return FIRECRACKER_COLORS[goldenIndex];
 }
 
-// 2D High-Performance Ascending Rocket Class
+// 2D High-Performance Ascending Rocket Class (Optimized with zero heap churn)
 class CanvasRocket {
   constructor(startX, startY, targetX, targetY, color, student, onApex) {
     this.x = startX;
     this.y = startY;
+    this.prevX = startX;
+    this.prevY = startY;
     this.targetX = targetX;
     this.targetY = targetY;
     this.color = color;
     this.student = student;
     this.onApex = onApex;
     this.alive = true;
-    this.trail = [];
-    this.maxTrail = 14;
 
     const dx = targetX - startX;
     const dy = targetY - startY;
@@ -81,9 +81,8 @@ class CanvasRocket {
   }
 
   update() {
-    this.trail.push({ x: this.x, y: this.y });
-    if (this.trail.length > this.maxTrail) this.trail.shift();
-
+    this.prevX = this.x;
+    this.prevY = this.y;
     this.x += this.vx;
     this.y += this.vy;
 
@@ -95,68 +94,59 @@ class CanvasRocket {
   }
 
   draw(ctx) {
-    ctx.save();
-    // Smoke / spark trail
-    for (let i = 0; i < this.trail.length - 1; i++) {
-      const p1 = this.trail[i];
-      const p2 = this.trail[i + 1];
-      const ratio = (i + 1) / this.trail.length;
-      ctx.strokeStyle = this.color.hex;
-      ctx.globalAlpha = ratio * 0.85;
-      ctx.lineWidth = ratio * 3.5;
-      ctx.beginPath();
-      ctx.moveTo(p1.x, p1.y);
-      ctx.lineTo(p2.x, p2.y);
-      ctx.stroke();
-    }
+    // Continuous streak trail without heap array allocations
+    ctx.strokeStyle = this.color.hex;
+    ctx.globalAlpha = 0.85;
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.moveTo(this.prevX - this.vx * 1.6, this.prevY - this.vy * 1.6);
+    ctx.lineTo(this.x, this.y);
+    ctx.stroke();
 
     // Glowing Rocket Head
     ctx.globalAlpha = 1;
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.arc(this.x, this.y, 3.5, 0, Math.PI * 2);
+    ctx.arc(this.x, this.y, 3.5, 0, 6.2831853);
     ctx.fill();
-
-    // Occasional spark dropped from tail
-    if (Math.random() < 0.6) {
-      ctx.fillStyle = '#f59e0b';
-      ctx.beginPath();
-      ctx.arc(this.x + (Math.random() - 0.5) * 6, this.y + 6, 2, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
   }
 }
 
-// 2D High-Density Firecracker Spark Particle Class
+// 2D Ultra-Fast Spark Particle Class (Eliminates 30,000+ ctx.save/restore calls & array allocations)
 class CanvasSpark {
-  constructor(x, y, colorHex, type = 'spark') {
+  constructor(x, y, colorHex, type = 'spark', isUltraLight = false) {
     this.x = x;
     this.y = y;
+    this.prevX = x;
+    this.prevY = y;
     this.color = colorHex;
     this.type = type; // 'spark', 'willow', 'crackler'
-    this.trail = [];
-    this.maxTrail = type === 'willow' ? 8 : 4;
     this.alpha = 1;
     this.alive = true;
+    this.isUltraLight = isUltraLight;
 
-    const angle = Math.random() * Math.PI * 2;
+    const angle = Math.random() * 6.2831853; // 2 * PI
     const speed = type === 'willow' 
-      ? (1.8 + Math.random() * 5.2) 
-      : (type === 'crackler' ? (2.5 + Math.random() * 6.5) : (2.2 + Math.random() * 9.5));
+      ? (1.8 + Math.random() * 4.6) 
+      : (type === 'crackler' ? (2.4 + Math.random() * 5.8) : (2.2 + Math.random() * 8.4));
 
     this.vx = Math.cos(angle) * speed;
     this.vy = Math.sin(angle) * speed;
-    this.gravity = type === 'willow' ? 0.085 : 0.06;
+    this.gravity = type === 'willow' ? 0.08 : 0.055;
     this.drag = type === 'willow' ? 0.965 : 0.955;
-    this.decay = type === 'willow' ? (0.007 + Math.random() * 0.009) : (0.014 + Math.random() * 0.016);
-    this.size = type === 'willow' ? 2.2 : (type === 'crackler' ? 1.6 : (2.0 + Math.random() * 1.6));
+    this.decay = type === 'willow' 
+      ? (0.007 + Math.random() * 0.009) 
+      : (0.013 + Math.random() * 0.015);
+    
+    // In ultra-light mode, boost particle radius so fewer particles look just as rich and dense
+    const baseSize = isUltraLight ? 2.5 : 1.9;
+    this.size = type === 'willow' ? baseSize + 0.5 : (type === 'crackler' ? baseSize : (baseSize + Math.random() * 1.4));
     this.flicker = Math.random() > 0.45;
   }
 
   update() {
-    this.trail.push({ x: this.x, y: this.y });
-    if (this.trail.length > this.maxTrail) this.trail.shift();
+    this.prevX = this.x;
+    this.prevY = this.y;
 
     this.vx *= this.drag;
     this.vy = (this.vy * this.drag) + this.gravity;
@@ -171,40 +161,24 @@ class CanvasSpark {
 
   draw(ctx) {
     if (this.alpha <= 0) return;
-    ctx.save();
-
-    // Draw glowing comet trail behind each spark
-    if (this.trail.length > 1) {
-      for (let i = 0; i < this.trail.length - 1; i++) {
-        const p1 = this.trail[i];
-        const p2 = this.trail[i + 1];
-        const ratio = (i + 1) / this.trail.length;
-        ctx.strokeStyle = this.color;
-        ctx.globalAlpha = Math.max(0, ratio * this.alpha * 0.75);
-        ctx.lineWidth = ratio * this.size;
-        ctx.beginPath();
-        ctx.moveTo(p1.x, p1.y);
-        ctx.lineTo(p2.x, p2.y);
-        ctx.stroke();
-      }
-    }
-
-    // Spark Head
     const currentAlpha = this.flicker && Math.random() < 0.2 ? this.alpha * 0.4 : this.alpha;
-    ctx.globalAlpha = Math.max(0, currentAlpha);
-    ctx.fillStyle = this.color;
+    
+    // Fast comet streak - ZERO save/restore, ZERO object allocations
+    ctx.globalAlpha = currentAlpha;
+    ctx.strokeStyle = this.color;
+    ctx.lineWidth = this.size;
     ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.moveTo(this.prevX, this.prevY);
+    ctx.lineTo(this.x, this.y);
+    ctx.stroke();
 
-    // Hot white blinding core for high-intensity sparks
+    // Hot blinding white core for high intensity
     if (this.alpha > 0.55) {
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.arc(this.x, this.y, this.size * 0.5, 0, Math.PI * 2);
+      ctx.arc(this.x, this.y, this.size * 0.45, 0, 6.2831853);
       ctx.fill();
     }
-    ctx.restore();
   }
 }
 
@@ -215,14 +189,14 @@ class CanvasShockwave {
     this.y = y;
     this.color = colorHex;
     this.radius = 4;
-    this.maxRadius = 75;
+    this.maxRadius = 65;
     this.alpha = 1;
     this.alive = true;
   }
 
   update() {
     this.radius += 5.5;
-    this.alpha -= 0.055;
+    this.alpha -= 0.06;
     if (this.alpha <= 0 || this.radius >= this.maxRadius) {
       this.alive = false;
     }
@@ -230,26 +204,24 @@ class CanvasShockwave {
 
   draw(ctx) {
     if (this.alpha <= 0) return;
-    ctx.save();
-    ctx.globalAlpha = Math.max(0, this.alpha * 0.85);
+    ctx.globalAlpha = this.alpha * 0.85;
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.arc(this.x, this.y, this.radius, 0, 6.2831853);
     ctx.stroke();
 
     ctx.strokeStyle = this.color;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.arc(this.x, this.y, Math.max(1, this.radius - 3), 0, Math.PI * 2);
+    ctx.arc(this.x, this.y, Math.max(1, this.radius - 3), 0, 6.2831853);
     ctx.stroke();
-    ctx.restore();
   }
 }
 
 // 2D Glowing Celebration Student Banner
 class CanvasCelebrationBanner {
-  constructor(x, y, student, color) {
+  constructor(x, y, student, color, isUltraLight = false) {
     this.x = x;
     this.y = y;
     this.student = student;
@@ -257,12 +229,13 @@ class CanvasCelebrationBanner {
     this.alpha = 1;
     this.alive = true;
     this.age = 0;
+    this.isUltraLight = isUltraLight;
   }
 
   update() {
     this.age++;
-    if (this.age > 160) {
-      this.alpha -= 0.02;
+    if (this.age > 150) {
+      this.alpha -= 0.025;
       if (this.alpha <= 0) this.alive = false;
     }
   }
@@ -276,17 +249,22 @@ class CanvasCelebrationBanner {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
+    // In ultra-light mode, avoid heavy blur filters which stutter on mobile Canvas 2D
+    if (!this.isUltraLight) {
+      ctx.shadowColor = this.color.hex;
+      ctx.shadowBlur = 14;
+    } else {
+      ctx.shadowBlur = 0;
+    }
+
     // Glowing Student Name
     ctx.font = 'bold 24px Montserrat, sans-serif';
-    ctx.shadowColor = this.color.hex;
-    ctx.shadowBlur = 18;
     ctx.fillStyle = '#ffffff';
     ctx.fillText(this.student.Name, this.x, this.y - 12);
 
+    ctx.shadowBlur = 0;
     // Firecracker Effect Title
     ctx.font = '600 13px Montserrat, sans-serif';
-    ctx.shadowColor = '#000000';
-    ctx.shadowBlur = 6;
     ctx.fillStyle = this.color.hex;
     ctx.fillText(`✨ ${this.color.name}`, this.x, this.y + 14);
 
@@ -317,7 +295,9 @@ function BoyBombIgniter({ action, activeStudent, studentColor }) {
       flexDirection: 'column',
       alignItems: 'center',
       zIndex: 25,
-      userSelect: 'none'
+      userSelect: 'none',
+      willChange: 'transform',
+      transform: 'translateZ(0)'
     }}>
       {/* Speech Dialogue Bubble */}
       <div style={{
@@ -563,6 +543,28 @@ export default function FallingStarsGame({
   const [searchFilter, setSearchFilter] = useState('');
   const [filterMode, setFilterMode] = useState('unmarked'); // 'all', 'unmarked', 'present', 'absent'
 
+  // Dedicated Ultra-Light Fast Mode state (stored in localStorage & synced with ecoMode)
+  const [ultraLightMode, setUltraLightMode] = useState(() => {
+    try {
+      const saved = localStorage.getItem('festive_ultra_light');
+      return saved !== null ? saved === 'true' : ecoMode;
+    } catch {
+      return ecoMode;
+    }
+  });
+
+  const effectiveUltraLight = ultraLightMode || ecoMode;
+
+  const toggleUltraLight = () => {
+    setUltraLightMode(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('festive_ultra_light', String(next));
+      } catch {}
+      return next;
+    });
+  };
+
   const getStudentClass = (s) => (s.Class ? `${s.Class} ${s.Section || ''}`.trim() : selectedClass);
 
   // Persistent sky positions for students marked present
@@ -589,18 +591,18 @@ export default function FallingStarsGame({
     return list;
   }, [students, attendanceData, selectedDate, selectedClass]);
 
-  // Main 2D Animation Loop (Runs at 60 FPS)
+  // Main 2D Animation Loop (Optimized for smooth 60 FPS on any device)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: false });
     let animationFrameId;
 
     const handleResize = () => {
       const rect = containerRef.current?.getBoundingClientRect();
       if (rect) {
-        canvas.width = rect.width;
-        canvas.height = rect.height;
+        canvas.width = Math.floor(rect.width);
+        canvas.height = Math.floor(rect.height);
       }
     };
     handleResize();
@@ -615,34 +617,58 @@ export default function FallingStarsGame({
       // 2. Additive Blending ('lighter') for blinding fireworks glow!
       ctx.globalCompositeOperation = 'lighter';
 
-      // Update & Draw Rockets
-      rocketsRef.current = rocketsRef.current.filter(r => r.alive);
-      rocketsRef.current.forEach(r => {
+      // Update & Draw Rockets (In-place zero-allocation loop)
+      const rockets = rocketsRef.current;
+      let rAlive = 0;
+      for (let i = 0; i < rockets.length; i++) {
+        const r = rockets[i];
         r.update();
-        r.draw(ctx);
-      });
+        if (r.alive) {
+          r.draw(ctx);
+          rockets[rAlive++] = r;
+        }
+      }
+      rockets.length = rAlive;
 
-      // Update & Draw Shockwaves
-      shockwavesRef.current = shockwavesRef.current.filter(sw => sw.alive);
-      shockwavesRef.current.forEach(sw => {
+      // Update & Draw Shockwaves (In-place zero-allocation loop)
+      const shockwaves = shockwavesRef.current;
+      let swAlive = 0;
+      for (let i = 0; i < shockwaves.length; i++) {
+        const sw = shockwaves[i];
         sw.update();
-        sw.draw(ctx);
-      });
+        if (sw.alive) {
+          sw.draw(ctx);
+          shockwaves[swAlive++] = sw;
+        }
+      }
+      shockwaves.length = swAlive;
 
-      // Update & Draw Sparks (Up to 500+ particles smoothly!)
-      sparksRef.current = sparksRef.current.filter(s => s.alive);
-      sparksRef.current.forEach(s => {
+      // Update & Draw Sparks (In-place zero-allocation loop - buttery smooth 60 FPS)
+      const sparks = sparksRef.current;
+      let sAlive = 0;
+      for (let i = 0; i < sparks.length; i++) {
+        const s = sparks[i];
         s.update();
-        s.draw(ctx);
-      });
+        if (s.alive) {
+          s.draw(ctx);
+          sparks[sAlive++] = s;
+        }
+      }
+      sparks.length = sAlive;
 
       // 3. Normal Blending for Celebration Typography Banners
       ctx.globalCompositeOperation = 'source-over';
-      bannersRef.current = bannersRef.current.filter(b => b.alive);
-      bannersRef.current.forEach(b => {
+      const banners = bannersRef.current;
+      let bAlive = 0;
+      for (let i = 0; i < banners.length; i++) {
+        const b = banners[i];
         b.update();
-        b.draw(ctx);
-      });
+        if (b.alive) {
+          b.draw(ctx);
+          banners[bAlive++] = b;
+        }
+      }
+      banners.length = bAlive;
 
       animationFrameId = requestAnimationFrame(render);
     };
@@ -692,16 +718,16 @@ export default function FallingStarsGame({
         // Shockwave flash ring
         shockwavesRef.current.push(new CanvasShockwave(apexX, apexY, rocketColor.hex));
 
-        // 500+ High-Density Sparks! (Eco mode uses ~240, standard uses ~520)
-        const sparkCount = ecoMode ? 240 : 520;
+        // High-Density Sparks: Ultra-Light uses 160 high-impact sparks; standard uses 360
+        const sparkCount = effectiveUltraLight ? 160 : 360;
         for (let i = 0; i < sparkCount; i++) {
           const rand = Math.random();
           const type = rand < 0.65 ? 'spark' : (rand < 0.90 ? 'willow' : 'crackler');
-          sparksRef.current.push(new CanvasSpark(apexX, apexY, rocketColor.hex, type));
+          sparksRef.current.push(new CanvasSpark(apexX, apexY, rocketColor.hex, type, effectiveUltraLight));
         }
 
         // Radiant Celebration Banner
-        bannersRef.current.push(new CanvasCelebrationBanner(apexX, apexY, rocketStudent, rocketColor));
+        bannersRef.current.push(new CanvasCelebrationBanner(apexX, apexY, rocketStudent, rocketColor, effectiveUltraLight));
 
         // Mark Present
         if (toggleAttendance) {
@@ -775,7 +801,7 @@ export default function FallingStarsGame({
         }} 
       />
 
-      {/* Top Floating Badge - Clean & Elegant */}
+      {/* Top Floating Badge with Ultra-Light Turbo Mode Toggle */}
       <div style={{
         position: 'absolute',
         top: '0.8rem',
@@ -783,20 +809,44 @@ export default function FallingStarsGame({
         transform: 'translateX(-50%)',
         display: 'flex',
         alignItems: 'center',
-        gap: '0.5rem',
-        background: 'rgba(10, 15, 35, 0.88)',
+        gap: '0.7rem',
+        background: 'rgba(10, 15, 35, 0.92)',
         backdropFilter: 'blur(14px)',
-        border: '1px solid rgba(255, 255, 255, 0.15)',
-        padding: '0.35rem 1.25rem',
+        border: '1px solid rgba(255, 255, 255, 0.16)',
+        padding: '0.35rem 0.95rem 0.35rem 1.25rem',
         borderRadius: '30px',
         color: '#f8fafc',
         fontSize: '0.85rem',
         fontFamily: 'Montserrat, sans-serif',
         zIndex: 20,
         boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
-        pointerEvents: 'none'
+        pointerEvents: 'auto'
       }}>
         <span>🎆 <b>Festive Firecrackers</b></span>
+
+        {/* Dedicated Ultra-Light Fast Mode Toggle */}
+        <button
+          onClick={toggleUltraLight}
+          title={effectiveUltraLight ? "Ultra-Light Mode Active (60 FPS on any device)" : "Click to activate Ultra-Light Fast Mode"}
+          style={{
+            background: effectiveUltraLight ? 'rgba(16, 185, 129, 0.28)' : 'rgba(255, 255, 255, 0.1)',
+            border: effectiveUltraLight ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.2)',
+            color: effectiveUltraLight ? '#34d399' : '#cbd5e1',
+            borderRadius: '20px',
+            padding: '0.2rem 0.6rem',
+            fontSize: '0.72rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.32rem',
+            transition: 'all 0.2s ease',
+            boxShadow: effectiveUltraLight ? '0 0 10px rgba(16, 185, 129, 0.3)' : 'none'
+          }}
+        >
+          <span>⚡</span>
+          <span>{effectiveUltraLight ? 'Ultra-Light: ON' : 'Fast Mode'}</span>
+        </button>
       </div>
 
       {/* Persistent Night Sky Lanterns for All Marked Students */}
