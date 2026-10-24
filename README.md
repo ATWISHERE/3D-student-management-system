@@ -36,8 +36,9 @@ Browser tabs dynamically adapt to provide clear context for administrators and t
 - **Micro-Click Haptic (`playClickSound`)**: Crisp UI feedback on toggles and button presses.
 - **Ribbon Mute Toggle**: Dedicated `[ 🔊 Sound: ON ]` / `[ 🔇 Muted ]` button directly in the upper navigation bar.
 
-### 4. ✨ Mystery 3D Constellation & Uncomplete Mechanism
+### 4. ✨ Mystery 3D Constellation & Non-Repeating Shuffle
 - **Secret Shape Masking**: Constellation shapes are masked as `Constellation #1 ❓`, `Constellation #2 ❓`, etc. The real shape name and polygonal lines remain completely hidden during attendance to preserve the surprise for students until the `✨ Complete` button is clicked.
+- **Non-Repeating Random Shuffle**: The 🎲 Random button uses a deck shuffle algorithm without replacement—it cycles through every available mystery shape before repeating, ensuring every shape is seen at least once.
 - **Non-Destructive `🔓 Resume / Edit`**: If attendance was completed accidentally or late students arrive, clicking `Resume / Edit` returns the stars to interactive marking mode **without erasing any marked attendance**.
 - **Safe Class Transitions**: Switching classes dynamically clears the 3D visual constellation for the new class while **strictly preserving** all previously marked attendance records across all other classes.
 - **Single-Side Orderly Absent Star Columns**: Absent students are positioned in a neat, evenly spaced vertical column on the right side (`x = 16.5`), perfectly visible with uniform distance between each star and no clumping or splitting.
@@ -67,9 +68,9 @@ Browser tabs dynamically adapt to provide clear context for administrators and t
 - **Admin Configuration**: Dynamically adjust global fee structures and base amounts for instant recalculation.
 
 ### 🎮 Gamified 3D Attendance Engines (`AttendanceSystem.jsx`)
-- **✨ 3D Constellation Attendance (`ConstellationGame.jsx`)**: Students appear as floating stars. Marking present joins them into mystery celestial geometry.
+- **✨ 3D Constellation Attendance (`ConstellationGame.jsx`)**: Students appear as floating stars. Marking present joins them into mystery celestial geometry with non-repeating shape shuffles and single-side absent columns.
+- **🎆 Festive Crackers Attendance (`FallingStarsGame.jsx`)**: Interactive nocturnal celebration featuring a 3D Firecracker Shack and Master at bottom-right, student palette launcher, 40+ authentic high-contrast firework effects, ascending rockets with ascent whistle, apex burst with expanding radial spark physics, glowing 3D celebration student typography in the sky, and persistent floating festive lanterns.
 - **🫧 Bubble Popper Attendance (`BubblePopperGame.jsx`)**: Students float in iridescent bubbles that pop on attendance confirmation.
-- **⭐ Falling Stars Attendance (`FallingStarsGame.jsx`)**: Cosmic starry cascade with smooth interactive tracking.
 - **🎯 Target Practice Attendance (`TargetPracticeGame.jsx`)**: High-performance canvas-cached arcade archery target board.
 - **Merge Mode**: Combine multiple sections (e.g. `10 A`, `10 B`) into a unified register while cleanly partitioning saved records.
 

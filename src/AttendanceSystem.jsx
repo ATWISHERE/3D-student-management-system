@@ -109,7 +109,7 @@ export default function AttendanceSystem({ students, onBack }) {
     } else {
       let gameName = '3D Constellation Attendance';
       if (selectedGame === 'bubble') gameName = 'Bubble Popper Attendance';
-      else if (selectedGame === 'falling') gameName = 'Falling Stars Attendance';
+      else if (selectedGame === 'falling') gameName = 'Festive Crackers Attendance';
       else if (selectedGame === 'target') gameName = 'Target Practice Attendance';
       document.title = `ATW • ${gameName} (${classLabel})`;
     }
@@ -603,7 +603,7 @@ export default function AttendanceSystem({ students, onBack }) {
               >
                 <option value="constellation" style={{ color: '#000' }}>✨ Constellation</option>
                 <option value="bubble" style={{ color: '#000' }}>🫧 Bubble Popper</option>
-                <option value="falling" style={{ color: '#000' }}>⭐ Falling Stars</option>
+                <option value="falling" style={{ color: '#000' }}>🎆 Festive Crackers</option>
                 <option value="target" style={{ color: '#000' }}>🎯 Target Practice</option>
               </select>
             </div>

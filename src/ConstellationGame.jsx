@@ -357,6 +357,22 @@ export default function ConstellationGame({
   const [isFinished, setIsFinished] = useState(false);
   const shapeKeys = Object.keys(SHAPES);
 
+  // Non-repeating random shape deck: ensures every shape is selected at least once before repeating
+  const unvisitedShapesRef = useRef([]);
+
+  const pickRandomShape = () => {
+    let available = unvisitedShapesRef.current.filter(k => k !== selectedShape);
+    if (available.length === 0) {
+      available = shapeKeys.filter(k => k !== selectedShape);
+      unvisitedShapesRef.current = [...available];
+    }
+    const pickIndex = Math.floor(Math.random() * available.length);
+    const chosenShape = available[pickIndex];
+    unvisitedShapesRef.current = unvisitedShapesRef.current.filter(k => k !== chosenShape);
+    setSelectedShape(chosenShape);
+    playClickSound();
+  };
+
   const getStudentClass = (s) => (s.Class ? `${s.Class} ${s.Section || ''}`.trim() : selectedClass);
 
   const studentKeysStr = useMemo(
@@ -831,13 +847,10 @@ export default function ConstellationGame({
             </select>
           </div>
 
-          {/* Random Shape Button */}
+          {/* Random Shape Button - Never repeats until all shapes are seen */}
           <button 
-            onClick={() => {
-              const randomKey = shapeKeys[Math.floor(Math.random() * shapeKeys.length)];
-              setSelectedShape(randomKey);
-            }}
-            title="Choose a random constellation shape"
+            onClick={pickRandomShape}
+            title="Choose a new mystery shape (rotates through every shape without repeating)"
             style={{
               background: 'rgba(147, 51, 234, 0.25)',
               color: '#d8b4fe',
