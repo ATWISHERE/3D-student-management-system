@@ -1,8 +1,4 @@
 import React, { useRef, useState, useMemo, useEffect } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Text, Billboard, Sparkles, Float } from '@react-three/drei';
-import { EffectComposer, Bloom } from '@react-three/postprocessing';
-import * as THREE from 'three';
 import { 
   playFirecrackerLaunch, 
   playFirecrackerBurst, 
@@ -12,346 +8,297 @@ import {
 
 // 40+ Authentic, High-Contrast Distinct Firecracker Colors with Curated Effects
 export const FIRECRACKER_COLORS = [
-  { name: 'Imperial Golden Willow', hex: '#ffd700', text: '#ffffff' },
-  { name: 'Electric Cyan Chrysanthemum', hex: '#00f5ff', text: '#ffffff' },
-  { name: 'Ruby Peony', hex: '#f43f5e', text: '#ffffff' },
-  { name: 'Dragon Emerald Spark', hex: '#10b981', text: '#ffffff' },
-  { name: 'Royal Amethyst Dahlia', hex: '#a855f7', text: '#ffffff' },
-  { name: 'Solar Flare Orange', hex: '#ff5722', text: '#ffffff' },
-  { name: 'Deep Sapphire Sky', hex: '#0284c7', text: '#ffffff' },
-  { name: 'Radiant Fuchsia Blossom', hex: '#ff007f', text: '#ffffff' },
-  { name: 'Tiger Tail Amber', hex: '#f59e0b', text: '#000000' },
-  { name: 'Glacial Ice Turquoise', hex: '#06b6d4', text: '#ffffff' },
-  { name: 'Neon Lime Starburst', hex: '#84cc16', text: '#000000' },
-  { name: 'Twilight Purple Comet', hex: '#8b5cf6', text: '#ffffff' },
-  { name: 'Coral Palm Flare', hex: '#fb7185', text: '#ffffff' },
-  { name: 'Marigold Sunburst', hex: '#eab308', text: '#000000' },
-  { name: 'Cobalt Strobe', hex: '#3b82f6', text: '#ffffff' },
-  { name: 'Rose Gold Shimmer', hex: '#f472b6', text: '#ffffff' },
-  { name: 'Jade Waterfall', hex: '#22c55e', text: '#ffffff' },
-  { name: 'Electric Indigo Ray', hex: '#6366f1', text: '#ffffff' },
-  { name: 'Phoenix Fire Orange', hex: '#ea580c', text: '#ffffff' },
-  { name: 'Lagoon Aurora Teal', hex: '#14b8a6', text: '#ffffff' },
-  { name: 'Crimson Velvet Willow', hex: '#e11d48', text: '#ffffff' },
-  { name: 'Champagne Sparkle', hex: '#fef08a', text: '#000000' },
-  { name: 'Cerulean Splash', hex: '#0ea5e9', text: '#ffffff' },
-  { name: 'Ultra Magenta Flash', hex: '#d946ef', text: '#ffffff' },
-  { name: 'Golden Honey Brocade', hex: '#d97706', text: '#ffffff' },
-  { name: 'Mint Glaze Star', hex: '#34d399', text: '#000000' },
-  { name: 'Electric Violet Meteor', hex: '#9333ea', text: '#ffffff' },
-  { name: 'Blood Orange Cascade', hex: '#dc2626', text: '#ffffff' },
-  { name: 'Aqua Marine Wave', hex: '#38bdf8', text: '#000000' },
-  { name: 'Lemon Zing Sparkler', hex: '#facc15', text: '#000000' },
-  { name: 'Orchid Dream', hex: '#c084fc', text: '#ffffff' },
-  { name: 'Forest Jade Fountain', hex: '#059669', text: '#ffffff' },
-  { name: 'Flamingo Pink Ring', hex: '#ec4899', text: '#ffffff' },
-  { name: 'Sunset Bronze Tail', hex: '#b45309', text: '#ffffff' },
-  { name: 'Deep Sea Cyan', hex: '#0891b2', text: '#ffffff' },
-  { name: 'Radiant Lavender Burst', hex: '#a78bfa', text: '#ffffff' },
-  { name: 'Scarlet Dragon Blaze', hex: '#b91c1c', text: '#ffffff' },
-  { name: 'Electric Spring Bud', hex: '#4ade80', text: '#000000' },
-  { name: 'Persian Blue Comet', hex: '#2563eb', text: '#ffffff' },
-  { name: 'Copper Starlight', hex: '#c2410c', text: '#ffffff' },
-  { name: 'Crystal Platinum Spark', hex: '#e2e8f0', text: '#000000' }
+  { name: 'Imperial Golden Willow', hex: '#ffd700', text: '#ffffff', type: 'willow' },
+  { name: 'Electric Cyan Chrysanthemum', hex: '#00f5ff', text: '#ffffff', type: 'peony' },
+  { name: 'Ruby Peony', hex: '#f43f5e', text: '#ffffff', type: 'peony' },
+  { name: 'Dragon Emerald Spark', hex: '#10b981', text: '#ffffff', type: 'willow' },
+  { name: 'Royal Amethyst Dahlia', hex: '#a855f7', text: '#ffffff', type: 'peony' },
+  { name: 'Solar Flare Orange', hex: '#ff5722', text: '#ffffff', type: 'willow' },
+  { name: 'Deep Sapphire Sky', hex: '#0284c7', text: '#ffffff', type: 'peony' },
+  { name: 'Radiant Fuchsia Blossom', hex: '#ff007f', text: '#ffffff', type: 'peony' },
+  { name: 'Tiger Tail Amber', hex: '#f59e0b', text: '#000000', type: 'willow' },
+  { name: 'Glacial Ice Turquoise', hex: '#06b6d4', text: '#ffffff', type: 'peony' },
+  { name: 'Neon Lime Starburst', hex: '#84cc16', text: '#000000', type: 'peony' },
+  { name: 'Twilight Purple Comet', hex: '#8b5cf6', text: '#ffffff', type: 'willow' },
+  { name: 'Coral Palm Flare', hex: '#fb7185', text: '#ffffff', type: 'peony' },
+  { name: 'Marigold Sunburst', hex: '#eab308', text: '#000000', type: 'willow' },
+  { name: 'Cobalt Strobe', hex: '#3b82f6', text: '#ffffff', type: 'peony' },
+  { name: 'Rose Gold Shimmer', hex: '#f472b6', text: '#ffffff', type: 'willow' },
+  { name: 'Jade Waterfall', hex: '#22c55e', text: '#ffffff', type: 'willow' },
+  { name: 'Electric Indigo Ray', hex: '#6366f1', text: '#ffffff', type: 'peony' },
+  { name: 'Phoenix Fire Orange', hex: '#ea580c', text: '#ffffff', type: 'willow' },
+  { name: 'Lagoon Aurora Teal', hex: '#14b8a6', text: '#ffffff', type: 'peony' },
+  { name: 'Crimson Velvet Willow', hex: '#e11d48', text: '#ffffff', type: 'willow' },
+  { name: 'Champagne Sparkle', hex: '#fef08a', text: '#000000', type: 'willow' },
+  { name: 'Cerulean Splash', hex: '#0ea5e9', text: '#ffffff', type: 'peony' },
+  { name: 'Ultra Magenta Flash', hex: '#d946ef', text: '#ffffff', type: 'peony' },
+  { name: 'Golden Honey Brocade', hex: '#d97706', text: '#ffffff', type: 'willow' },
+  { name: 'Mint Glaze Star', hex: '#34d399', text: '#000000', type: 'peony' },
+  { name: 'Electric Violet Meteor', hex: '#9333ea', text: '#ffffff', type: 'willow' },
+  { name: 'Blood Orange Cascade', hex: '#dc2626', text: '#ffffff', type: 'willow' },
+  { name: 'Aqua Marine Wave', hex: '#38bdf8', text: '#000000', type: 'peony' },
+  { name: 'Lemon Zing Sparkler', hex: '#facc15', text: '#000000', type: 'peony' },
+  { name: 'Orchid Dream', hex: '#c084fc', text: '#ffffff', type: 'willow' },
+  { name: 'Forest Jade Fountain', hex: '#059669', text: '#ffffff', type: 'willow' },
+  { name: 'Flamingo Pink Ring', hex: '#ec4899', text: '#ffffff', type: 'peony' },
+  { name: 'Sunset Bronze Tail', hex: '#b45309', text: '#ffffff', type: 'willow' },
+  { name: 'Deep Sea Cyan', hex: '#0891b2', text: '#ffffff', type: 'peony' },
+  { name: 'Radiant Lavender Burst', hex: '#a78bfa', text: '#ffffff', type: 'willow' },
+  { name: 'Scarlet Dragon Blaze', hex: '#b91c1c', text: '#ffffff', type: 'willow' },
+  { name: 'Electric Spring Bud', hex: '#4ade80', text: '#000000', type: 'peony' },
+  { name: 'Persian Blue Comet', hex: '#2563eb', text: '#ffffff', type: 'willow' },
+  { name: 'Copper Starlight', hex: '#c2410c', text: '#ffffff', type: 'willow' },
+  { name: 'Crystal Platinum Spark', hex: '#e2e8f0', text: '#000000', type: 'peony' }
 ];
 
-/**
- * Returns a guaranteed distinct, high-contrast color for every student
- */
 export function getStudentFirecrackerColor(index) {
-  // Use golden ratio stepping modulo 40 so adjacent students ALWAYS receive contrasting complementary colors!
+  // Golden ratio stepping modulo 40 ensures adjacent students always receive contrasting complementary colors
   const goldenIndex = (index * 13) % FIRECRACKER_COLORS.length;
   return FIRECRACKER_COLORS[goldenIndex];
 }
 
-// 3D Firecracker Shack & Boy Master Component
-function FirecrackerShack({ isLaunching, launchingStudent, studentColor }) {
-  const shackRef = useRef();
-  const boyRef = useRef();
-  const sparklerRef = useRef();
+// 2D High-Performance Ascending Rocket Class
+class CanvasRocket {
+  constructor(startX, startY, targetX, targetY, color, student, onApex) {
+    this.x = startX;
+    this.y = startY;
+    this.targetX = targetX;
+    this.targetY = targetY;
+    this.color = color;
+    this.student = student;
+    this.onApex = onApex;
+    this.alive = true;
+    this.trail = [];
+    this.maxTrail = 14;
 
-  useFrame((state, delta) => {
-    if (boyRef.current) {
-      // Gentle idle sway and excited jumping during launch
-      const t = state.clock.elapsedTime;
-      if (isLaunching) {
-        boyRef.current.position.y = -8.2 + Math.sin(t * 12) * 0.25;
-        boyRef.current.rotation.z = Math.sin(t * 8) * 0.08;
-      } else {
-        boyRef.current.position.y = -8.2 + Math.sin(t * 2) * 0.06;
-        boyRef.current.rotation.z = 0;
-      }
+    const dx = targetX - startX;
+    const dy = targetY - startY;
+    const distance = Math.hypot(dx, dy);
+    this.angle = Math.atan2(dy, dx);
+    this.speed = Math.max(9, distance / 32);
+    this.vx = Math.cos(this.angle) * this.speed;
+    this.vy = Math.sin(this.angle) * this.speed;
+  }
+
+  update() {
+    this.trail.push({ x: this.x, y: this.y });
+    if (this.trail.length > this.maxTrail) this.trail.shift();
+
+    this.x += this.vx;
+    this.y += this.vy;
+
+    // Check if reached apex altitude
+    if (this.y <= this.targetY) {
+      this.alive = false;
+      this.onApex(this.x, this.y, this.color, this.student);
     }
-    if (sparklerRef.current) {
-      sparklerRef.current.rotation.z += delta * 4;
+  }
+
+  draw(ctx) {
+    ctx.save();
+    // Smoke / spark trail
+    for (let i = 0; i < this.trail.length - 1; i++) {
+      const p1 = this.trail[i];
+      const p2 = this.trail[i + 1];
+      const ratio = (i + 1) / this.trail.length;
+      ctx.strokeStyle = this.color.hex;
+      ctx.globalAlpha = ratio * 0.85;
+      ctx.lineWidth = ratio * 3.5;
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
     }
-  });
 
-  return (
-    <group ref={shackRef} position={[15, -8.5, 0]}>
-      {/* Wooden Kiosk Base Stand */}
-      <mesh position={[0, -0.6, 0]}>
-        <boxGeometry args={[4.2, 1.4, 2.4]} />
-        <meshStandardMaterial color="#3d2314" roughness={0.7} />
-      </mesh>
-      
-      {/* Front Counter Plank */}
-      <mesh position={[0, 0.2, 0.9]}>
-        <boxGeometry args={[4.5, 0.25, 0.8]} />
-        <meshStandardMaterial color="#8b5a2b" roughness={0.4} />
-      </mesh>
+    // Glowing Rocket Head
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, 3.5, 0, Math.PI * 2);
+    ctx.fill();
 
-      {/* Roof Canopy with Festive Stripes */}
-      <mesh position={[0, 2.5, 0.2]} rotation={[0.15, 0, 0]}>
-        <boxGeometry args={[4.8, 0.3, 2.8]} />
-        <meshStandardMaterial color="#b91c1c" roughness={0.5} />
-      </mesh>
-      
-      {/* Left & Right Roof Support Posts */}
-      <mesh position={[-2, 1.2, 0.9]}>
-        <cylinderGeometry args={[0.08, 0.08, 2.4]} />
-        <meshStandardMaterial color="#8b5a2b" />
-      </mesh>
-      <mesh position={[2, 1.2, 0.9]}>
-        <cylinderGeometry args={[0.08, 0.08, 2.4]} />
-        <meshStandardMaterial color="#8b5a2b" />
-      </mesh>
-
-      {/* Warm Lantern Glow */}
-      <pointLight position={[0, 1.5, 1]} intensity={3} color="#f59e0b" distance={8} />
-
-      {/* The Firecracker Master / Boy Character */}
-      <group ref={boyRef} position={[0.2, 0.3, 0.2]}>
-        {/* Head */}
-        <mesh position={[0, 1.3, 0]}>
-          <sphereGeometry args={[0.42, 16, 16]} />
-          <meshStandardMaterial color="#fcd34d" roughness={0.4} />
-        </mesh>
-        
-        {/* Festive Hat / Turban */}
-        <mesh position={[0, 1.65, 0]}>
-          <coneGeometry args={[0.48, 0.6, 16]} />
-          <meshStandardMaterial color="#0284c7" />
-        </mesh>
-        <mesh position={[0, 1.95, 0]}>
-          <sphereGeometry args={[0.12, 8, 8]} />
-          <meshStandardMaterial color="#f59e0b" emissive="#f59e0b" emissiveIntensity={1} />
-        </mesh>
-
-        {/* Torso / Kurta */}
-        <mesh position={[0, 0.65, 0]}>
-          <cylinderGeometry args={[0.35, 0.42, 0.9, 12]} />
-          <meshStandardMaterial color="#dc2626" />
-        </mesh>
-
-        {/* Arm holding igniter sparkler */}
-        <mesh position={[-0.55, 0.85, 0.3]} rotation={[0.4, 0, 0.7]}>
-          <cylinderGeometry args={[0.07, 0.07, 0.7]} />
-          <meshStandardMaterial color="#fcd34d" />
-        </mesh>
-
-        {/* Igniter Sparkler Tip */}
-        <group ref={sparklerRef} position={[-0.85, 1.2, 0.45]}>
-          <mesh>
-            <sphereGeometry args={[0.15, 8, 8]} />
-            <meshBasicMaterial color={isLaunching && studentColor ? studentColor.hex : '#fbbf24'} />
-          </mesh>
-          <Sparkles count={isLaunching ? 18 : 6} scale={0.7} size={2.5} color={isLaunching && studentColor ? studentColor.hex : '#fbbf24'} />
-        </group>
-      </group>
-
-      {/* Shack Signboard */}
-      <Billboard position={[0, 3.2, 0.5]}>
-        <Text fontSize={0.38} color="#fef08a" outlineWidth={0.05} outlineColor="#78350f" fontWeight="bold">
-          🎆 FIRECRACKER STATION
-        </Text>
-        <Text position={[0, -0.38, 0]} fontSize={0.22} color="#ffffff" outlineWidth={0.03} outlineColor="#000000">
-          {isLaunching && launchingStudent 
-            ? `Igniting ${launchingStudent.Name}...` 
-            : "Who's next for attendance?"}
-        </Text>
-      </Billboard>
-    </group>
-  );
+    // Occasional spark dropped from tail
+    if (Math.random() < 0.6) {
+      ctx.fillStyle = '#f59e0b';
+      ctx.beginPath();
+      ctx.arc(this.x + (Math.random() - 0.5) * 6, this.y + 6, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
 }
 
-// 3D Flying Rocket with Smoke/Spark Trail
-function ActiveRocket({ rocket, onApex }) {
-  const meshRef = useRef();
-  const startTime = useRef(performance.now());
-  const startPos = useMemo(() => new THREE.Vector3(14.2, -7.5, 0), []);
+// 2D High-Density Firecracker Spark Particle Class
+class CanvasSpark {
+  constructor(x, y, colorHex, type = 'spark') {
+    this.x = x;
+    this.y = y;
+    this.color = colorHex;
+    this.type = type; // 'spark', 'willow', 'crackler'
+    this.trail = [];
+    this.maxTrail = type === 'willow' ? 8 : 4;
+    this.alpha = 1;
+    this.alive = true;
 
-  useFrame(() => {
-    const elapsed = (performance.now() - startTime.current) / 1000;
-    const duration = 0.65; // Flight time to apex
-    const progress = Math.min(1, elapsed / duration);
-    
-    // Smooth ease-out quad upward flight curve
-    const currentX = THREE.MathUtils.lerp(startPos.x, rocket.targetPos.x, progress);
-    const currentY = THREE.MathUtils.lerp(startPos.y, rocket.targetPos.y, Math.sin(progress * Math.PI * 0.5));
-    const currentZ = THREE.MathUtils.lerp(startPos.z, rocket.targetPos.z, progress);
+    const angle = Math.random() * Math.PI * 2;
+    const speed = type === 'willow' 
+      ? (1.8 + Math.random() * 5.2) 
+      : (type === 'crackler' ? (2.5 + Math.random() * 6.5) : (2.2 + Math.random() * 9.5));
 
-    if (meshRef.current) {
-      meshRef.current.position.set(currentX, currentY, currentZ);
-      // Tilt rocket in direction of motion
-      const dx = rocket.targetPos.x - startPos.x;
-      meshRef.current.rotation.z = Math.atan2(10, dx) - Math.PI / 2;
+    this.vx = Math.cos(angle) * speed;
+    this.vy = Math.sin(angle) * speed;
+    this.gravity = type === 'willow' ? 0.085 : 0.06;
+    this.drag = type === 'willow' ? 0.965 : 0.955;
+    this.decay = type === 'willow' ? (0.007 + Math.random() * 0.009) : (0.014 + Math.random() * 0.016);
+    this.size = type === 'willow' ? 2.2 : (type === 'crackler' ? 1.6 : (2.0 + Math.random() * 1.6));
+    this.flicker = Math.random() > 0.45;
+  }
+
+  update() {
+    this.trail.push({ x: this.x, y: this.y });
+    if (this.trail.length > this.maxTrail) this.trail.shift();
+
+    this.vx *= this.drag;
+    this.vy = (this.vy * this.drag) + this.gravity;
+    this.x += this.vx;
+    this.y += this.vy;
+    this.alpha -= this.decay;
+
+    if (this.alpha <= 0) {
+      this.alive = false;
     }
+  }
 
-    if (progress >= 1) {
-      onApex(rocket);
-    }
-  });
+  draw(ctx) {
+    if (this.alpha <= 0) return;
+    ctx.save();
 
-  return (
-    <group ref={meshRef}>
-      {/* Rocket Cylindrical Shell */}
-      <mesh>
-        <cylinderGeometry args={[0.15, 0.18, 0.9, 12]} />
-        <meshStandardMaterial color={rocket.color.hex} emissive={rocket.color.hex} emissiveIntensity={0.6} />
-      </mesh>
-      {/* Glowing Cone Nose */}
-      <mesh position={[0, 0.55, 0]}>
-        <coneGeometry args={[0.2, 0.45, 12]} />
-        <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={1} />
-      </mesh>
-      {/* Rocket Flame / Spark Tail */}
-      <mesh position={[0, -0.6, 0]}>
-        <coneGeometry args={[0.16, 0.6, 8]} />
-        <meshBasicMaterial color="#ffaa00" />
-      </mesh>
-      <Sparkles count={15} scale={1.2} size={3} color={rocket.color.hex} speed={1.5} />
-    </group>
-  );
-}
-
-// 3D Firecracker Burst Explosion with Expanding Radial Sparks
-function ActiveBurst({ burst, onComplete, ecoMode }) {
-  const sparkGroupRef = useRef();
-  const startTime = useRef(performance.now());
-  const sparkCount = ecoMode ? 22 : 42;
-
-  // Pre-generate radial explosion velocities
-  const sparkVelocities = useMemo(() => {
-    const list = [];
-    for (let i = 0; i < sparkCount; i++) {
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos((Math.random() * 2) - 1);
-      const speed = 4 + Math.random() * 7;
-      list.push(new THREE.Vector3(
-        speed * Math.sin(phi) * Math.cos(theta),
-        speed * Math.sin(phi) * Math.sin(theta),
-        speed * Math.cos(phi) * 0.4
-      ));
-    }
-    return list;
-  }, [sparkCount]);
-
-  useFrame(() => {
-    const elapsed = (performance.now() - startTime.current) / 1000;
-    const duration = 1.6; // Total explosion decay
-    const progress = Math.min(1, elapsed / duration);
-
-    if (sparkGroupRef.current) {
-      const children = sparkGroupRef.current.children;
-      for (let i = 0; i < children.length; i++) {
-        const mesh = children[i];
-        if (mesh && sparkVelocities[i]) {
-          const vel = sparkVelocities[i];
-          // Drag and gravity
-          const x = vel.x * elapsed * 0.9;
-          const y = (vel.y * elapsed * 0.9) - (2.5 * elapsed * elapsed); // gravity pull
-          const z = vel.z * elapsed * 0.9;
-          mesh.position.set(x, y, z);
-          // Scale down as sparks burn out
-          const s = Math.max(0, 1 - progress);
-          mesh.scale.set(s, s, s);
-        }
+    // Draw glowing comet trail behind each spark
+    if (this.trail.length > 1) {
+      for (let i = 0; i < this.trail.length - 1; i++) {
+        const p1 = this.trail[i];
+        const p2 = this.trail[i + 1];
+        const ratio = (i + 1) / this.trail.length;
+        ctx.strokeStyle = this.color;
+        ctx.globalAlpha = Math.max(0, ratio * this.alpha * 0.75);
+        ctx.lineWidth = ratio * this.size;
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.stroke();
       }
     }
 
-    if (progress >= 1) {
-      onComplete(burst.id);
+    // Spark Head
+    const currentAlpha = this.flicker && Math.random() < 0.2 ? this.alpha * 0.4 : this.alpha;
+    ctx.globalAlpha = Math.max(0, currentAlpha);
+    ctx.fillStyle = this.color;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Hot white blinding core for high-intensity sparks
+    if (this.alpha > 0.55) {
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.size * 0.5, 0, Math.PI * 2);
+      ctx.fill();
     }
-  });
-
-  return (
-    <group position={burst.targetPos}>
-      {/* Central Expanding Flash Ring */}
-      <mesh>
-        <ringGeometry args={[0.2, 0.4, 24]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0.8} depthWrite={false} side={THREE.DoubleSide} />
-      </mesh>
-
-      {/* Radiating Explosion Sparks */}
-      <group ref={sparkGroupRef}>
-        {sparkVelocities.map((_, idx) => (
-          <mesh key={idx}>
-            <sphereGeometry args={[0.12, 6, 6]} />
-            <meshBasicMaterial color={burst.color.hex} />
-          </mesh>
-        ))}
-      </group>
-
-      {/* Shimmering Embers */}
-      <Sparkles count={ecoMode ? 20 : 60} scale={6} size={3.5} color={burst.color.hex} speed={0.8} opacity={0.9} />
-
-      {/* Radiant Glowing Student Name In The Sky */}
-      <Billboard position={[0, 1.8, 0]}>
-        <Text fontSize={0.85} color="#ffffff" outlineWidth={0.08} outlineColor={burst.color.hex} fontWeight="bold">
-          {burst.student.Name}
-        </Text>
-        <Text position={[0, -0.65, 0]} fontSize={0.38} color={burst.color.hex} outlineWidth={0.04} outlineColor="#000000" fontWeight="bold">
-          ✨ {burst.color.name}
-        </Text>
-        {burst.student.Class && (
-          <Text position={[0, -1.15, 0]} fontSize={0.28} color="#e2e8f0" outlineWidth={0.03} outlineColor="#000000">
-            {`${burst.student.Class} ${burst.student.Section || ''}`.trim()} • PRESENT ✓
-          </Text>
-        )}
-      </Billboard>
-    </group>
-  );
+    ctx.restore();
+  }
 }
 
-// 3D Floating Lantern for Students Already Marked Present
-function SkyLanternNode({ student, position, color, onSelect }) {
-  const meshRef = useRef();
+// 2D Instant Shockwave Flash Ring
+class CanvasShockwave {
+  constructor(x, y, colorHex) {
+    this.x = x;
+    this.y = y;
+    this.color = colorHex;
+    this.radius = 4;
+    this.maxRadius = 75;
+    this.alpha = 1;
+    this.alive = true;
+  }
 
-  useFrame((state, delta) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.y += delta * 0.5;
+  update() {
+    this.radius += 5.5;
+    this.alpha -= 0.055;
+    if (this.alpha <= 0 || this.radius >= this.maxRadius) {
+      this.alive = false;
     }
-  });
+  }
 
-  return (
-    <group position={position} onClick={onSelect}>
-      <Float speed={1.5} rotationIntensity={0.3} floatIntensity={0.8}>
-        {/* Festive Floating Lantern */}
-        <mesh ref={meshRef}>
-          <cylinderGeometry args={[0.45, 0.38, 0.85, 12]} />
-          <meshStandardMaterial 
-            color={color.hex} 
-            emissive={color.hex} 
-            emissiveIntensity={0.8} 
-            roughness={0.2} 
-            transparent 
-            opacity={0.85} 
-          />
-        </mesh>
-        
-        {/* Lantern Core Light */}
-        <pointLight intensity={1.5} color={color.hex} distance={4} />
+  draw(ctx) {
+    if (this.alpha <= 0) return;
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, this.alpha * 0.85);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.stroke();
 
-        {/* Floating Student Name Banner */}
-        <Billboard position={[0, -0.9, 0]}>
-          <Text fontSize={0.34} color="#ffffff" outlineWidth={0.04} outlineColor="#000000" fontWeight="bold">
-            {student.Name}
-          </Text>
-        </Billboard>
-      </Float>
-    </group>
-  );
+    ctx.strokeStyle = this.color;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, Math.max(1, this.radius - 3), 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+// 2D Glowing Celebration Student Banner
+class CanvasCelebrationBanner {
+  constructor(x, y, student, color) {
+    this.x = x;
+    this.y = y;
+    this.student = student;
+    this.color = color;
+    this.alpha = 1;
+    this.alive = true;
+    this.age = 0;
+  }
+
+  update() {
+    this.age++;
+    if (this.age > 160) {
+      this.alpha -= 0.02;
+      if (this.alpha <= 0) this.alive = false;
+    }
+  }
+
+  draw(ctx) {
+    if (this.alpha <= 0) return;
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, this.alpha);
+
+    // Centered text
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Glowing Student Name
+    ctx.font = 'bold 24px Montserrat, sans-serif';
+    ctx.shadowColor = this.color.hex;
+    ctx.shadowBlur = 18;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(this.student.Name, this.x, this.y - 12);
+
+    // Firecracker Effect Title
+    ctx.font = '600 13px Montserrat, sans-serif';
+    ctx.shadowColor = '#000000';
+    ctx.shadowBlur = 6;
+    ctx.fillStyle = this.color.hex;
+    ctx.fillText(`✨ ${this.color.name}`, this.x, this.y + 14);
+
+    // Class & Status
+    if (this.student.Class) {
+      ctx.font = '500 11px Montserrat, sans-serif';
+      ctx.fillStyle = '#cbd5e1';
+      ctx.fillText(`${this.student.Class} ${this.student.Section || ''} • PRESENT ✓`.trim(), this.x, this.y + 32);
+    }
+
+    ctx.restore();
+  }
 }
 
 export default function FallingStarsGame({ 
@@ -363,78 +310,168 @@ export default function FallingStarsGame({
   setAttendanceStatus, 
   onToggleAttendance, 
   markRemainingAbsent, 
-  ecoMode = true 
+  ecoMode = false 
 }) {
   const toggleAttendance = setAttendanceStatus || onToggleAttendance;
 
-  // Active animations state
-  const [activeRockets, setActiveRockets] = useState([]);
-  const [activeBursts, setActiveBursts] = useState([]);
+  const canvasRef = useRef(null);
+  const containerRef = useRef(null);
+
+  // Simulation collections
+  const rocketsRef = useRef([]);
+  const sparksRef = useRef([]);
+  const shockwavesRef = useRef([]);
+  const bannersRef = useRef([]);
+
+  // UI state
   const [isLaunching, setIsLaunching] = useState(false);
-  const [launchingStudent, setLaunchingStudent] = useState(null);
+  const [activeStudent, setActiveStudent] = useState(null);
   const [searchFilter, setSearchFilter] = useState('');
   const [filterMode, setFilterMode] = useState('unmarked'); // 'all', 'unmarked', 'present', 'absent'
 
   const getStudentClass = (s) => (s.Class ? `${s.Class} ${s.Section || ''}`.trim() : selectedClass);
 
-  // Assign deterministic, non-clashing sky positions for all students
-  const skyPositions = useMemo(() => {
-    const map = {};
-    const cols = Math.ceil(Math.sqrt(Math.max(1, students.length))) + 1;
-    const spacingX = 4.2;
-    const spacingY = 3.2;
-    const startX = -14;
-    const startY = 9;
-
-    students.forEach((s, idx) => {
-      const col = idx % cols;
-      const row = Math.floor(idx / cols);
-      const randOffset = Math.sin(idx * 7.77) * 0.6;
-      map[s.Name] = new THREE.Vector3(
-        startX + col * spacingX + randOffset,
-        startY - row * spacingY + randOffset,
-        (Math.cos(idx * 5.55) * 4) - 2
-      );
+  // Persistent sky positions for students marked present
+  const presentLanterns = useMemo(() => {
+    const list = [];
+    students.forEach((student, idx) => {
+      const cls = getStudentClass(student);
+      const status = attendanceData[cls]?.[student.Name]?.[selectedDate];
+      if (status === 'P') {
+        const color = getStudentFirecrackerColor(idx);
+        // Deterministic sky coordinates
+        const cols = Math.ceil(Math.sqrt(Math.max(1, students.length))) + 1;
+        const col = idx % cols;
+        const row = Math.floor(idx / cols);
+        list.push({
+          student,
+          idx,
+          color,
+          gridCol: col,
+          gridRow: row
+        });
+      }
     });
-    return map;
-  }, [students]);
+    return list;
+  }, [students, attendanceData, selectedDate, selectedClass]);
 
-  // Ignite & Launch Firecracker for Student
-  const handleLaunchFirecracker = (student, index) => {
+  // Main 2D Animation Loop (Runs at 60 FPS)
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let animationFrameId;
+
+    const handleResize = () => {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (rect) {
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+
+    const render = () => {
+      // 1. Semi-transparent black clear to produce natural long-exposure glowing comet trails!
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = 'rgba(6, 8, 20, 0.22)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // 2. Additive Blending ('lighter') for blinding fireworks glow!
+      ctx.globalCompositeOperation = 'lighter';
+
+      // Update & Draw Rockets
+      rocketsRef.current = rocketsRef.current.filter(r => r.alive);
+      rocketsRef.current.forEach(r => {
+        r.update();
+        r.draw(ctx);
+      });
+
+      // Update & Draw Shockwaves
+      shockwavesRef.current = shockwavesRef.current.filter(sw => sw.alive);
+      shockwavesRef.current.forEach(sw => {
+        sw.update();
+        sw.draw(ctx);
+      });
+
+      // Update & Draw Sparks (Up to 500+ particles smoothly!)
+      sparksRef.current = sparksRef.current.filter(s => s.alive);
+      sparksRef.current.forEach(s => {
+        s.update();
+        s.draw(ctx);
+      });
+
+      // 3. Normal Blending for Celebration Typography Banners
+      ctx.globalCompositeOperation = 'source-over';
+      bannersRef.current = bannersRef.current.filter(b => b.alive);
+      bannersRef.current.forEach(b => {
+        b.update();
+        b.draw(ctx);
+      });
+
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    animationFrameId = requestAnimationFrame(render);
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  // Launch Firecracker for a Student
+  const handleLaunch = (student, index) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
     const studentClass = getStudentClass(student);
     const color = getStudentFirecrackerColor(index);
-    const targetPos = skyPositions[student.Name] || new THREE.Vector3(0, 5, 0);
 
-    // Audio cue: Ascent whistle
+    // Launch coordinates: From bottom-right shack
+    const startX = canvas.width - 150;
+    const startY = canvas.height - 110;
+
+    // Target apex: Random pleasant sky location in top-middle area
+    const targetX = canvas.width * 0.12 + Math.random() * (canvas.width * 0.65);
+    const targetY = canvas.height * 0.14 + Math.random() * (canvas.height * 0.38);
+
+    // Audio: Rocket ascending whistle
     playFirecrackerLaunch();
 
     setIsLaunching(true);
-    setLaunchingStudent(student);
+    setActiveStudent(student);
 
-    const rocketId = `${student.Name}_${Date.now()}`;
-    setActiveRockets(prev => [...prev, { id: rocketId, student, studentClass, color, targetPos }]);
+    const onApex = (apexX, apexY, rocketColor, rocketStudent) => {
+      setIsLaunching(false);
+      setActiveStudent(null);
 
-    // Mark as Present immediately or upon burst
-    if (toggleAttendance) {
-      toggleAttendance(student.Name, 'P', studentClass);
-    }
-  };
+      // Audio: Deep boom & crackle
+      playFirecrackerBurst();
 
-  // When rocket reaches apex altitude
-  const handleApex = (rocket) => {
-    setActiveRockets(prev => prev.filter(r => r.id !== rocket.id));
-    setIsLaunching(false);
-    setLaunchingStudent(null);
+      // Shockwave flash ring
+      shockwavesRef.current.push(new CanvasShockwave(apexX, apexY, rocketColor.hex));
 
-    // Audio cue: Explosion burst & crackle
-    playFirecrackerBurst();
+      // 500+ High-Density Sparks! (Eco mode uses ~240, standard uses ~520)
+      const sparkCount = ecoMode ? 240 : 520;
+      for (let i = 0; i < sparkCount; i++) {
+        // Mix: 65% primary sparks, 25% willow weeping branches, 10% cracklers
+        const rand = Math.random();
+        const type = rand < 0.65 ? 'spark' : (rand < 0.90 ? 'willow' : 'crackler');
+        sparksRef.current.push(new CanvasSpark(apexX, apexY, rocketColor.hex, type));
+      }
 
-    const burstId = `burst_${rocket.student.Name}_${Date.now()}`;
-    setActiveBursts(prev => [...prev, { id: burstId, student: rocket.student, color: rocket.color, targetPos: rocket.targetPos }]);
-  };
+      // Radiant Celebration Banner
+      bannersRef.current.push(new CanvasCelebrationBanner(apexX, apexY, rocketStudent, rocketColor));
 
-  const handleBurstComplete = (burstId) => {
-    setActiveBursts(prev => prev.filter(b => b.id !== burstId));
+      // Mark Present
+      if (toggleAttendance) {
+        toggleAttendance(rocketStudent.Name, 'P', studentClass);
+      }
+    };
+
+    rocketsRef.current.push(new CanvasRocket(startX, startY, targetX, targetY, color, student, onApex));
   };
 
   // Launch Next Unmarked Student
@@ -447,14 +484,14 @@ export default function FallingStarsGame({
 
     if (unmarked.length > 0) {
       const nextStudent = unmarked[0];
-      const origIndex = students.findIndex(s => s.Name === nextStudent.Name);
-      handleLaunchFirecracker(nextStudent, origIndex >= 0 ? origIndex : 0);
+      const origIdx = students.findIndex(s => s.Name === nextStudent.Name);
+      handleLaunch(nextStudent, origIdx >= 0 ? origIdx : 0);
     }
   };
 
   // Filter students for bottom tray
   const filteredStudents = useMemo(() => {
-    return students.filter((s, idx) => {
+    return students.filter((s) => {
       const cls = getStudentClass(s);
       const status = attendanceData[cls]?.[s.Name]?.[selectedDate];
       
@@ -470,66 +507,30 @@ export default function FallingStarsGame({
   }, [students, attendanceData, selectedDate, searchFilter, filterMode]);
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative', background: 'radial-gradient(circle at 75% 90%, #201335 0%, #080918 60%, #03040a 100%)', overflow: 'hidden' }}>
-      
-      {/* 3D Night Sky Canvas */}
-      <Canvas
-        camera={{ position: [0, 0, 26], fov: 50 }}
-        dpr={ecoMode ? 1 : [1, 1.5]}
-        gl={{ powerPreference: 'high-performance', antialias: !ecoMode }}
-      >
-        <ambientLight intensity={0.4} />
-        <pointLight position={[0, 15, 10]} intensity={1.5} color="#ffd700" />
-        <Sparkles count={ecoMode ? 120 : 350} scale={45} size={2} color="#ffffff" opacity={0.35} speed={0.2} />
+    <div 
+      ref={containerRef} 
+      style={{ 
+        width: '100%', 
+        height: '100%', 
+        position: 'relative', 
+        background: 'radial-gradient(circle at 75% 85%, #180d28 0%, #070914 60%, #020308 100%)', 
+        overflow: 'hidden' 
+      }}
+    >
+      {/* High-Performance 2D Fireworks Canvas */}
+      <canvas 
+        ref={canvasRef} 
+        style={{ 
+          position: 'absolute', 
+          top: 0, 
+          left: 0, 
+          width: '100%', 
+          height: '100%', 
+          display: 'block' 
+        }} 
+      />
 
-        {/* The Boy & Firecracker Station */}
-        <FirecrackerShack 
-          isLaunching={isLaunching} 
-          launchingStudent={launchingStudent}
-          studentColor={launchingStudent ? getStudentFirecrackerColor(students.findIndex(s => s.Name === launchingStudent.Name)) : null} 
-        />
-
-        {/* Flying Ascending Rockets */}
-        {activeRockets.map(rocket => (
-          <ActiveRocket key={rocket.id} rocket={rocket} onApex={handleApex} />
-        ))}
-
-        {/* Burst Explosions */}
-        {activeBursts.map(burst => (
-          <ActiveBurst key={burst.id} burst={burst} onComplete={handleBurstComplete} ecoMode={ecoMode} />
-        ))}
-
-        {/* Persistent Floating Lanterns for All Marked Students */}
-        {students.map((student, idx) => {
-          const studentClass = getStudentClass(student);
-          const status = attendanceData[studentClass]?.[student.Name]?.[selectedDate];
-          if (status !== 'P') return null;
-          const pos = skyPositions[student.Name];
-          if (!pos) return null;
-          const color = getStudentFirecrackerColor(idx);
-          return (
-            <SkyLanternNode 
-              key={`lantern_${student.Name}_${idx}`}
-              student={student} 
-              position={pos} 
-              color={color} 
-              onSelect={() => {
-                if (toggleAttendance) toggleAttendance(student.Name, '', studentClass);
-              }}
-            />
-          );
-        })}
-
-        {!ecoMode && (
-          <EffectComposer disableNormalPass>
-            <Bloom luminanceThreshold={0.15} luminanceSmoothing={0.9} intensity={1.8} radius={0.7} />
-          </EffectComposer>
-        )}
-
-        <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
-      </Canvas>
-
-      {/* Top Banner Information */}
+      {/* Top Floating Badge */}
       <div style={{
         position: 'absolute',
         top: '0.8rem',
@@ -538,10 +539,10 @@ export default function FallingStarsGame({
         display: 'flex',
         alignItems: 'center',
         gap: '0.75rem',
-        background: 'rgba(8, 12, 28, 0.85)',
-        backdropFilter: 'blur(12px)',
+        background: 'rgba(10, 15, 35, 0.88)',
+        backdropFilter: 'blur(14px)',
         border: '1px solid rgba(255, 255, 255, 0.15)',
-        padding: '0.35rem 1.2rem',
+        padding: '0.35rem 1.25rem',
         borderRadius: '30px',
         color: '#f8fafc',
         fontSize: '0.82rem',
@@ -550,9 +551,154 @@ export default function FallingStarsGame({
         boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
         pointerEvents: 'none'
       }}>
-        <span>🎆 <b>Festive Firecrackers Attendance</b></span>
+        <span>🎆 <b>Festive Firecrackers • 2D Ultra Burst Engine</b></span>
         <span style={{ color: '#94a3b8' }}>•</span>
-        <span style={{ color: '#ffd700' }}>Click any student name to ignite their personalized rocket!</span>
+        <span style={{ color: '#ffd700' }}>500+ Glowing Sparks with Additive Blending</span>
+      </div>
+
+      {/* Persistent Night Sky Lanterns for All Marked Students */}
+      <div style={{
+        position: 'absolute',
+        top: '3.8rem',
+        left: '1.5rem',
+        right: '18rem',
+        height: 'calc(100% - 17rem)',
+        pointerEvents: 'none',
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '1.2rem',
+        alignContent: 'flex-start',
+        overflow: 'hidden'
+      }}>
+        {presentLanterns.map(({ student, color }) => (
+          <div
+            key={student.Name}
+            onClick={() => {
+              const cls = getStudentClass(student);
+              if (toggleAttendance) toggleAttendance(student.Name, '', cls);
+            }}
+            title={`${student.Name} (Present) - Click to unmark`}
+            style={{
+              pointerEvents: 'auto',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.45rem',
+              background: 'rgba(10, 15, 30, 0.7)',
+              backdropFilter: 'blur(8px)',
+              border: `1px solid ${color.hex}`,
+              boxShadow: `0 0 12px ${color.hex}66`,
+              padding: '0.25rem 0.65rem',
+              borderRadius: '20px',
+              cursor: 'pointer',
+              userSelect: 'none',
+              animation: 'floatLantern 3s ease-in-out infinite alternate'
+            }}
+          >
+            {/* Glowing Lantern Bulb */}
+            <div style={{
+              width: '10px',
+              height: '10px',
+              borderRadius: '50%',
+              background: color.hex,
+              boxShadow: `0 0 8px ${color.hex}`
+            }} />
+            <span style={{ fontSize: '0.74rem', color: '#ffffff', fontWeight: 600 }}>
+              {student.Name}
+            </span>
+            <span style={{ fontSize: '0.7rem', color: '#10b981' }}>✓</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Bottom-Right Firecracker Shack & Boy Master */}
+      <div style={{
+        position: 'absolute',
+        bottom: '0.8rem',
+        right: '1rem',
+        width: '230px',
+        background: 'rgba(15, 20, 38, 0.92)',
+        backdropFilter: 'blur(16px)',
+        border: '1px solid rgba(255, 255, 255, 0.18)',
+        borderRadius: '20px',
+        padding: '0.8rem',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '0.5rem',
+        zIndex: 25,
+        boxShadow: '0 8px 30px rgba(0, 0, 0, 0.6)',
+        userSelect: 'none'
+      }}>
+        {/* Shack Canopy Header */}
+        <div style={{
+          width: '100%',
+          background: 'linear-gradient(135deg, #b91c1c, #991b1b)',
+          color: '#fef08a',
+          fontSize: '0.74rem',
+          fontWeight: 800,
+          textAlign: 'center',
+          padding: '0.3rem',
+          borderRadius: '12px',
+          letterSpacing: '0.05em',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.3rem'
+        }}>
+          <span>🏮</span>
+          <span>FIRECRACKER STATION</span>
+        </div>
+
+        {/* Boy Master Avatar with Sparkler */}
+        <div style={{ position: 'relative', margin: '0.3rem 0' }}>
+          <div style={{
+            width: '68px',
+            height: '68px',
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, #f59e0b 0%, #78350f 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '2.2rem',
+            boxShadow: isLaunching ? '0 0 25px #f59e0b' : '0 0 12px rgba(245, 158, 11, 0.4)',
+            transition: 'box-shadow 0.2s ease',
+            transform: isLaunching ? 'scale(1.08)' : 'scale(1)'
+          }}>
+            👦
+          </div>
+          {/* Active Sparkler Bulb */}
+          <div style={{
+            position: 'absolute',
+            top: '-2px',
+            right: '-2px',
+            width: '16px',
+            height: '16px',
+            borderRadius: '50%',
+            background: isLaunching && activeStudent ? getStudentFirecrackerColor(students.findIndex(s => s.Name === activeStudent.Name)).hex : '#ffd700',
+            boxShadow: '0 0 10px #ffffff',
+            animation: 'pulseSpark 0.5s infinite alternate'
+          }} />
+        </div>
+
+        {/* Speech Dialogue Bubble */}
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.08)',
+          border: '1px solid rgba(255, 255, 255, 0.14)',
+          borderRadius: '12px',
+          padding: '0.45rem 0.6rem',
+          fontSize: '0.74rem',
+          color: '#e2e8f0',
+          textAlign: 'center',
+          lineHeight: 1.35
+        }}>
+          {isLaunching && activeStudent ? (
+            <span style={{ color: '#ffd700', fontWeight: 700 }}>
+              🚀 Firing {activeStudent.Name}'s Rocket!
+            </span>
+          ) : (
+            <span>👋 "Salute your name to ignite your festival rocket!"</span>
+          )}
+        </div>
       </div>
 
       {/* Bottom Student Palette & Launcher Dock */}
@@ -560,20 +706,20 @@ export default function FallingStarsGame({
         position: 'absolute',
         bottom: '0.8rem',
         left: '1rem',
-        width: 'calc(100% - 22rem)', // Leave room for the 3D shack on bottom-right!
+        width: 'calc(100% - 17.5rem)',
         maxHeight: '190px',
-        background: 'rgba(10, 15, 30, 0.92)',
-        backdropFilter: 'blur(16px)',
+        background: 'rgba(10, 15, 30, 0.94)',
+        backdropFilter: 'blur(18px)',
         border: '1px solid rgba(255, 255, 255, 0.18)',
-        borderRadius: '18px',
-        padding: '0.65rem 0.9rem',
+        borderRadius: '20px',
+        padding: '0.7rem 1rem',
         display: 'flex',
         flexDirection: 'column',
-        gap: '0.5rem',
+        gap: '0.55rem',
         zIndex: 25,
-        boxShadow: '0 8px 30px rgba(0, 0, 0, 0.6)'
+        boxShadow: '0 8px 30px rgba(0, 0, 0, 0.65)'
       }}>
-        {/* Controls Header Row */}
+        {/* Controls Row */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'nowrap', gap: '0.6rem' }}>
           {/* Filter Tabs */}
           <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
@@ -589,7 +735,7 @@ export default function FallingStarsGame({
                   color: filterMode === tab ? '#0a0e1a' : '#cbd5e1',
                   border: 'none',
                   borderRadius: '12px',
-                  padding: '0.18rem 0.55rem',
+                  padding: '0.2rem 0.6rem',
                   fontSize: '0.72rem',
                   fontWeight: 700,
                   cursor: 'pointer',
@@ -614,14 +760,14 @@ export default function FallingStarsGame({
               borderRadius: '12px',
               color: '#ffffff',
               fontSize: '0.75rem',
-              padding: '0.2rem 0.6rem',
+              padding: '0.22rem 0.65rem',
               outline: 'none',
-              width: '170px'
+              width: '180px'
             }}
           />
 
-          {/* Quick Action: Fire Next */}
-          <div style={{ display: 'flex', gap: '0.4rem' }}>
+          {/* Actions */}
+          <div style={{ display: 'flex', gap: '0.45rem' }}>
             <button
               onClick={handleLaunchNext}
               title="Ignite firecracker for the next unmarked student"
@@ -630,14 +776,14 @@ export default function FallingStarsGame({
                 color: '#ffffff',
                 border: 'none',
                 borderRadius: '14px',
-                padding: '0.25rem 0.75rem',
+                padding: '0.28rem 0.85rem',
                 fontSize: '0.75rem',
                 fontWeight: 700,
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.3rem',
-                boxShadow: '0 0 10px rgba(245, 158, 11, 0.4)'
+                gap: '0.35rem',
+                boxShadow: '0 0 12px rgba(245, 158, 11, 0.45)'
               }}
             >
               <span>🚀 Fire Next</span>
@@ -653,7 +799,7 @@ export default function FallingStarsGame({
                 color: '#fca5a5',
                 border: '1px solid rgba(239, 68, 68, 0.4)',
                 borderRadius: '14px',
-                padding: '0.25rem 0.6rem',
+                padding: '0.28rem 0.65rem',
                 fontSize: '0.72rem',
                 fontWeight: 600,
                 cursor: 'pointer'
@@ -668,7 +814,7 @@ export default function FallingStarsGame({
         <div style={{
           display: 'flex',
           flexWrap: 'wrap',
-          gap: '0.35rem',
+          gap: '0.38rem',
           maxHeight: '135px',
           overflowY: 'auto',
           paddingRight: '0.4rem',
@@ -695,7 +841,7 @@ export default function FallingStarsGame({
                       if (toggleAttendance) toggleAttendance(student.Name, '', studentClass);
                       playClickSound();
                     } else {
-                      handleLaunchFirecracker(student, origIdx);
+                      handleLaunch(student, origIdx);
                     }
                   }}
                   onContextMenu={(e) => {
@@ -705,26 +851,26 @@ export default function FallingStarsGame({
                       playAbsentSound();
                     }
                   }}
-                  title={`Left click: Launch ${color.name} Rocket (Present) | Right click: Mark Absent`}
+                  title={`Left click: Launch ${color.name} (Present) | Right click: Mark Absent`}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.35rem',
+                    gap: '0.38rem',
                     background: isPresent 
-                      ? 'rgba(16, 185, 129, 0.22)' 
-                      : (isAbsent ? 'rgba(239, 68, 68, 0.22)' : 'rgba(255, 255, 255, 0.08)'),
+                      ? 'rgba(16, 185, 129, 0.24)' 
+                      : (isAbsent ? 'rgba(239, 68, 68, 0.24)' : 'rgba(255, 255, 255, 0.08)'),
                     border: isPresent 
                       ? '1px solid #10b981' 
                       : (isAbsent ? '1px solid #ef4444' : `1px solid ${color.hex}`),
                     borderRadius: '16px',
-                    padding: '0.22rem 0.55rem',
+                    padding: '0.24rem 0.58rem',
                     cursor: 'pointer',
                     userSelect: 'none',
                     transition: 'all 0.15s ease',
-                    boxShadow: isPresent ? '0 0 8px rgba(16, 185, 129, 0.3)' : 'none'
+                    boxShadow: isPresent ? '0 0 10px rgba(16, 185, 129, 0.35)' : 'none'
                   }}
                 >
-                  {/* Color Bulb Dot */}
+                  {/* Glowing Color Bulb Dot */}
                   <div style={{
                     width: '9px',
                     height: '9px',
