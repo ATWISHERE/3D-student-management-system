@@ -1,5 +1,6 @@
 import React, { useRef, useState, useMemo, useEffect } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { useFrame } from '@react-three/fiber';
+import SafeCanvas from './components/SafeCanvas';
 import { OrbitControls, Text, Line, Stars, Sparkles, Billboard } from '@react-three/drei';
 import * as THREE from 'three';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
@@ -571,10 +572,19 @@ export default function ConstellationGame({
         )}
       </div>
 
-      <Canvas 
+      <SafeCanvas 
         camera={{ position: [0, 0, 25], fov: 50 }}
         dpr={ecoMode ? 1 : [1, 1.5]}
         gl={{ powerPreference: 'high-performance', antialias: !ecoMode }}
+        fallback={
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#e2e8f0', textAlign: 'center', padding: '2rem' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✨</div>
+            <div style={{ fontSize: '1.25rem', fontWeight: 600, color: '#38bdf8', marginBottom: '0.5rem' }}>3D Constellation Mode Requires WebGL</div>
+            <div style={{ maxWidth: '420px', fontSize: '0.9rem', color: '#94a3b8', lineHeight: 1.5 }}>
+              Your browser or hardware currently has WebGL disabled. You can still use the <strong>Festive Firecrackers</strong> mode for full interactive attendance with smooth 2D graphics!
+            </div>
+          </div>
+        }
       >
         <ambientLight intensity={1.5} />
         <pointLight position={[10, 10, 10]} intensity={2.5} color="#4488ff" />
@@ -642,7 +652,7 @@ export default function ConstellationGame({
           enableRotate={true}
           autoRotate={false} 
         />
-      </Canvas>
+      </SafeCanvas>
       
       {/* Bottom HUD Controls Bar - Minimizable & Single Line */}
       {isControlsMinimized ? (

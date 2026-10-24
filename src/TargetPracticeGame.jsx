@@ -1,5 +1,6 @@
 import React, { useRef, useState, useMemo } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { useFrame } from '@react-three/fiber';
+import SafeCanvas from './components/SafeCanvas';
 import { OrbitControls, Text, Billboard, Float } from '@react-three/drei';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
@@ -106,10 +107,11 @@ export default function TargetPracticeGame({ students, attendanceData, selectedC
 
   return (
     <div style={{ width: '100%', height: '100%', background: 'linear-gradient(to bottom, #111827, #030712)' }}>
-      <Canvas 
+      <SafeCanvas 
         camera={{ position: [0, 0, 30], fov: 60 }}
         dpr={ecoMode ? 1 : [1, 1.5]}
-        gl={{ powerPreference: 'high-performance', antialias: !ecoMode }}
+        gl={{ powerPreference: 'default', antialias: !ecoMode }}
+        fallback={<div style={{ color: '#fff', textAlign: 'center', paddingTop: '4rem' }}>3D Target Practice requires WebGL. Switch to Festive Firecrackers for 2D mode!</div>}
       >
         <ambientLight intensity={1} />
         <directionalLight position={[0, 10, 10]} intensity={2} color="#ffffff" />
@@ -139,7 +141,7 @@ export default function TargetPracticeGame({ students, attendanceData, selectedC
         )}
 
         <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
-      </Canvas>
+      </SafeCanvas>
     </div>
   );
 }

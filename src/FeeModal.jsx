@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Canvas } from '@react-three/fiber';
+import SafeCanvas from './components/SafeCanvas';
 import { Float, Sphere, MeshDistortMaterial, Environment, Text } from '@react-three/drei';
 import { X, Settings } from 'lucide-react';
 
@@ -137,7 +137,7 @@ export default function FeeModal({ student, onClose }) {
         >
           {/* External Floating Canvas for Info Orbs */}
           <div style={{ position: 'absolute', right: '-120px', top: '-10%', height: '120%', width: '300px', zIndex: 50, pointerEvents: 'none' }}>
-            <Canvas camera={{ position: [0, 0, 9], fov: 45 }} style={{ pointerEvents: 'auto' }}>
+            <SafeCanvas camera={{ position: [0, 0, 9], fov: 45 }} fallback={null} style={{ pointerEvents: 'auto' }}>
               <ambientLight intensity={0.6} />
               <spotLight position={[5, 10, 5]} angle={0.2} penumbra={1} intensity={1.5} color="#ffffff" />
               <Environment preset="city" />
@@ -151,7 +151,7 @@ export default function FeeModal({ student, onClose }) {
                 value={student.IdentifierValue || student.RollNo || 'N/A'} 
                 position={[0, -1.4, 0]} 
               />
-            </Canvas>
+            </SafeCanvas>
           </div>
 
           <div style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', display: 'flex', gap: '1rem', zIndex: 60 }}>
@@ -207,8 +207,36 @@ export default function FeeModal({ student, onClose }) {
             )}
           </AnimatePresence>
 
-          <div style={{ height: '350px', width: '100%', position: 'relative' }}>
-            <Canvas camera={{ position: [0, 0, feeConfig.count > 5 ? 11 : 8.5], fov: 45 }}>
+          <div style={{ minHeight: '320px', width: '100%', position: 'relative' }}>
+            <SafeCanvas 
+              camera={{ position: [0, 0, feeConfig.count > 5 ? 11 : 8.5], fov: 45 }}
+              fallback={
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.8rem', justifyContent: 'center', padding: '1.5rem', maxHeight: '320px', overflowY: 'auto' }}>
+                  {installments.map((isPaid, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => handleOrbClick(idx)}
+                      style={{
+                        padding: '0.75rem 1.25rem',
+                        borderRadius: '16px',
+                        background: isPaid ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.12)',
+                        border: isPaid ? '1.5px solid #10b981' : '1.5px solid #ef4444',
+                        color: isPaid ? '#10b981' : '#ef4444',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        userSelect: 'none'
+                      }}
+                    >
+                      <span>{isPaid ? '✓' : '✗'}</span>
+                      <span>Installment {idx + 1} ({isPaid ? 'PAID' : 'DUE'})</span>
+                    </div>
+                  ))}
+                </div>
+              }
+            >
               <ambientLight intensity={0.5} />
               <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1} color="#FFD700" />
               <Environment preset="city" />
@@ -220,7 +248,7 @@ export default function FeeModal({ student, onClose }) {
                   onClick={() => handleOrbClick(idx)} 
                 />
               ))}
-            </Canvas>
+            </SafeCanvas>
           </div>
 
           <div style={{ textAlign: 'center', marginTop: '1rem' }}>

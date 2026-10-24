@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
 import gsap from 'gsap';
+import { isWebGLAvailable } from './utils/webglDetect';
 
 /**
  * ATW — Cinematic 3D Metallic Ribbon Logo Reveal
@@ -13,6 +14,7 @@ export default function Cinematic3DLogoReveal({ onComplete, onClose }) {
   const [phaseText, setPhaseText] = useState('Phase 1: Pure Darkness');
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showBrand, setShowBrand] = useState(false);
+  const [webglFailed, setWebglFailed] = useState(false);
   const audioCtxRef = useRef(null);
   const timelineRef = useRef(null);
 
@@ -108,10 +110,22 @@ export default function Cinematic3DLogoReveal({ onComplete, onClose }) {
     const width = container.clientWidth || window.innerWidth;
     const height = container.clientHeight || window.innerHeight;
 
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      powerPreference: 'high-performance'
-    });
+    if (!isWebGLAvailable()) {
+      setWebglFailed(true);
+      return;
+    }
+
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        powerPreference: 'high-performance'
+      });
+    } catch (err) {
+      console.warn('WebGL context creation failed:', err);
+      setWebglFailed(true);
+      return;
+    }
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -553,9 +567,11 @@ export default function Cinematic3DLogoReveal({ onComplete, onClose }) {
       cancelAnimationFrame(animId);
       window.removeEventListener('resize', handleResize);
       if (timelineRef.current) timelineRef.current.kill();
-      renderer.dispose();
-      if (container.contains(renderer.domElement)) {
-        container.removeChild(renderer.domElement);
+      if (renderer) {
+        renderer.dispose();
+        if (container && renderer.domElement && container.contains(renderer.domElement)) {
+          container.removeChild(renderer.domElement);
+        }
       }
     };
   }, [soundEnabled]);
@@ -565,6 +581,105 @@ export default function Cinematic3DLogoReveal({ onComplete, onClose }) {
       timelineRef.current.restart();
     }
   };
+
+  if (webglFailed) {
+    return (
+      <div style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        minHeight: '100vh',
+        background: 'radial-gradient(circle at center, #1c1917 0%, #0c0a09 60%, #000000 100%)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#f8fafc',
+        fontFamily: 'Montserrat, sans-serif'
+      }}>
+        {onClose && (
+          <button
+            onClick={onClose}
+            style={{
+              position: 'absolute',
+              top: '2rem',
+              right: '2rem',
+              background: 'rgba(255, 255, 255, 0.1)',
+              border: '1px solid rgba(255, 255, 255, 0.25)',
+              color: '#fff',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              padding: '0.5rem 1.1rem',
+              borderRadius: '25px',
+              cursor: 'pointer'
+            }}
+          >
+            ✕ Exit
+          </button>
+        )}
+        <div style={{
+          padding: '2.5rem',
+          borderRadius: '24px',
+          background: 'rgba(28, 25, 23, 0.75)',
+          border: '1px solid rgba(255, 215, 0, 0.35)',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.8), 0 0 40px rgba(245, 158, 11, 0.15)',
+          textAlign: 'center',
+          maxWidth: '460px',
+          backdropFilter: 'blur(16px)'
+        }}>
+          <img 
+            src="./logo/atw_logo.jpg" 
+            alt="ATW Logo" 
+            style={{
+              width: '180px',
+              height: '180px',
+              objectFit: 'contain',
+              borderRadius: '16px',
+              margin: '0 auto 1.5rem',
+              border: '2px solid rgba(255, 215, 0, 0.4)',
+              boxShadow: '0 10px 30px rgba(217, 119, 6, 0.3)'
+            }}
+          />
+          <h2 style={{
+            fontFamily: 'Cinzel, serif',
+            fontSize: '1.6rem',
+            letterSpacing: '0.25em',
+            background: 'linear-gradient(135deg, #ffffff 0%, #ffd700 70%, #d97706 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            margin: '0 0 0.5rem'
+          }}>
+            ABDUL TARIQUE WARSI
+          </h2>
+          <p style={{ color: '#a8a29e', fontSize: '0.85rem', marginBottom: '1.2rem' }}>
+            ATW • Cinematic Monogram (Safe 2D Mode)
+          </p>
+          <p style={{ color: '#94a3b8', fontSize: '0.78rem', marginBottom: '1.8rem', lineHeight: 1.5 }}>
+            Hardware WebGL acceleration is currently disabled or unavailable on this device. The 2D visual presentation is active.
+          </p>
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+            {onClose && (
+              <button
+                onClick={onClose}
+                style={{
+                  background: 'linear-gradient(135deg, #ffd700 0%, #d97706 100%)',
+                  color: '#000000',
+                  border: 'none',
+                  fontWeight: 700,
+                  padding: '0.65rem 1.6rem',
+                  borderRadius: '30px',
+                  cursor: 'pointer',
+                  fontSize: '0.85rem'
+                }}
+              >
+                Enter System
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{

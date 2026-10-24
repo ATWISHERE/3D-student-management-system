@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
-import { Canvas } from '@react-three/fiber';
+import SafeCanvas from './components/SafeCanvas';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
 import { Settings, Upload, Save, Check, X, ShieldAlert, Gamepad2, List, Volume2, VolumeX } from 'lucide-react';
@@ -406,11 +406,11 @@ export default function AttendanceSystem({ students, onBack }) {
       {/* 3D Decorative Bubbles Background for Register View */}
       {activeView === 'register' && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', pointerEvents: 'none', zIndex: 0 }}>
-          <Canvas camera={{ position: [0, 0, 8], fov: 45 }}>
+          <SafeCanvas camera={{ position: [0, 0, 8], fov: 45 }} fallback={null}>
             <Suspense fallback={null}>
               <ThreeScene />
             </Suspense>
-          </Canvas>
+          </SafeCanvas>
         </div>
       )}
 

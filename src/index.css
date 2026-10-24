@@ -40,6 +40,17 @@ h1, h2, h3, h4, h5 {
   z-index: -1;
 }
 
+.canvas-fallback-ambient {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at 60% 20%, rgba(217, 119, 6, 0.08) 0%, transparent 60%),
+              radial-gradient(circle at 20% 70%, rgba(120, 53, 15, 0.12) 0%, transparent 70%),
+              #070605;
+  pointer-events: none;
+}
+
 /* HTML Scroll Content */
 .scroll-container {
   width: 100vw;

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import * as XLSX from 'xlsx';
 import { Upload, RefreshCw } from 'lucide-react';
-import { Canvas } from '@react-three/fiber';
+import SafeCanvas from './components/SafeCanvas';
 import { motion, AnimatePresence } from 'framer-motion';
 import ThreeScene from './ThreeBackground';
 import FeeModal from './FeeModal';
@@ -434,10 +434,11 @@ function App() {
       </AnimatePresence>
 
       <div className="canvas-wrapper">
-        <Canvas 
+        <SafeCanvas 
           camera={{ position: [0, 0, 8], fov: 45 }}
           dpr={[1, 1.5]}
-          gl={{ powerPreference: 'high-performance' }}
+          gl={{ powerPreference: 'default' }}
+          fallback={<div className="canvas-fallback-ambient" />}
         >
           <Suspense fallback={null}>
             <ThreeScene 
@@ -446,7 +447,7 @@ function App() {
               setActiveSection={setActiveSection} 
             />
           </Suspense>
-        </Canvas>
+        </SafeCanvas>
       </div>
 
       {/* Feature: Intelligent Universal Excel Mapping Modal */}

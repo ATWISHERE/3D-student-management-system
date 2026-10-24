@@ -1,5 +1,6 @@
 import React, { useRef, useState, useMemo } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { useFrame } from '@react-three/fiber';
+import SafeCanvas from './components/SafeCanvas';
 import { OrbitControls, Text, Billboard, Sparkles, Float, MeshDistortMaterial } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
@@ -120,10 +121,19 @@ export default function BubblePopperGame({ students, attendanceData, selectedCla
 
   return (
     <div style={{ width: '100%', height: '100%', background: 'radial-gradient(circle at center, #004e92 0%, #000428 100%)' }}>
-      <Canvas 
+      <SafeCanvas 
         camera={{ position: [0, 0, 25], fov: 50 }}
         dpr={ecoMode ? 1 : [1, 1.5]}
         gl={{ powerPreference: 'high-performance', antialias: !ecoMode }}
+        fallback={
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#e2e8f0', textAlign: 'center', padding: '2rem' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🫧</div>
+            <div style={{ fontSize: '1.25rem', fontWeight: 600, color: '#38bdf8', marginBottom: '0.5rem' }}>3D Bubble Popper Requires WebGL</div>
+            <div style={{ maxWidth: '420px', fontSize: '0.9rem', color: '#94a3b8', lineHeight: 1.5 }}>
+              Your browser or hardware currently has WebGL disabled. You can still use the <strong>Festive Firecrackers</strong> mode for full interactive attendance with smooth 2D graphics!
+            </div>
+          </div>
+        }
       >
         <ambientLight intensity={1.5} />
         <directionalLight position={[10, 10, 10]} intensity={3} color="#aaccff" />
@@ -157,7 +167,7 @@ export default function BubblePopperGame({ students, attendanceData, selectedCla
         )}
         
         <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
-      </Canvas>
+      </SafeCanvas>
     </div>
   );
 }
